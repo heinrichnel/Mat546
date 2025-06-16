@@ -1,31 +1,19 @@
-// ─── React ───────────────────────────────────────────────────────
 import React, { useState } from 'react';
-
-// ─── Context ─────────────────────────────────────────────────────
-import { useAppContext } from '../../context/AppContext.tsx';
-
-// ─── UI Components ───────────────────────────────────────────────
-import Modal from '../ui/Modal.tsx';
-import Button from '../ui/Button.tsx';
-import { Input, Select, Textarea } from '../ui/FormElements.tsx';
-
-// ─── Icons ───────────────────────────────────────────────────────
-import {
-  Save,
-  X,
+import Modal from '../ui/Modal';
+import Button from '../ui/Button';
+import { Input, Select, TextArea } from '../ui/FormElements';
+import { 
+  Save, 
+  X, 
+  Plus, 
   Calculator,
   AlertTriangle,
   Fuel,
-  Database,
-  Link
+  Link,
+  Database
 } from 'lucide-react';
-
-// ─── Types / Constants ───────────────────────────────────────────
 import { FLEET_NUMBERS, DRIVERS, TRUCKS_WITH_PROBES } from '../../types';
-
-// ─── Utilities ───────────────────────────────────────────────────
-import { formatCurrency, formatDate } from '../../utils/helpers.ts';
-
+import { useAppContext } from '../../context/AppContext';
 
 interface ManualDieselEntryModalProps {
   isOpen: boolean;
@@ -51,7 +39,7 @@ const ManualDieselEntryModal: React.FC<ManualDieselEntryModalProps> = ({
     notes: '',
     tripId: '', // Link to trip
     currency: 'ZAR' as 'USD' | 'ZAR',
-    probeReading: '' // Probe reading field
+    probeReading: '' // NEW: Probe reading field
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -69,6 +57,7 @@ const ManualDieselEntryModal: React.FC<ManualDieselEntryModalProps> = ({
   const handleChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     
+    // Clear errors
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
     }
@@ -159,8 +148,11 @@ const ManualDieselEntryModal: React.FC<ManualDieselEntryModalProps> = ({
     const costPerLitre = formData.costPerLitre ? Number(formData.costPerLitre) : totalCost / litresFilled;
     const probeReading = formData.probeReading ? Number(formData.probeReading) : undefined;
 
+    // Calculate derived values
     const distanceTravelled = previousKmReading ? kmReading - previousKmReading : undefined;
     const kmPerLitre = distanceTravelled && litresFilled > 0 ? distanceTravelled / litresFilled : undefined;
+
+    // Calculate probe discrepancy if applicable
     const probeDiscrepancy = probeReading && litresFilled ? litresFilled - probeReading : undefined;
     const probeVerified = probeReading !== undefined;
 
@@ -177,7 +169,7 @@ const ManualDieselEntryModal: React.FC<ManualDieselEntryModalProps> = ({
       previousKmReading,
       distanceTravelled,
       kmPerLitre,
-      tripId: formData.tripId || undefined,
+      tripId: formData.tripId || undefined, // Link to trip
       currency: formData.currency,
       hasProbe,
       probeReading,
@@ -186,9 +178,11 @@ const ManualDieselEntryModal: React.FC<ManualDieselEntryModalProps> = ({
     };
 
     addDieselRecord(recordData);
-
+    
+    // Prepare alert message
     let alertMessage = `Diesel record added successfully!\n\nFleet: ${formData.fleetNumber}\nKM/L: ${kmPerLitre?.toFixed(2) || 'N/A'}\nCost: ${formData.currency === 'USD' ? '$' : 'R'}${totalCost.toFixed(2)}\n\n${formData.tripId ? 'Linked to trip for cost allocation.' : 'No trip linkage - standalone record.'}`;
-
+    
+    // Add probe verification info if applicable
     if (hasProbe && probeDiscrepancy !== undefined) {
       const discrepancyAbs = Math.abs(probeDiscrepancy);
       if (discrepancyAbs > 50) {
@@ -197,9 +191,10 @@ const ManualDieselEntryModal: React.FC<ManualDieselEntryModalProps> = ({
         alertMessage += `\n\nProbe verification: ${discrepancyAbs.toFixed(1)}L difference (within acceptable range).`;
       }
     }
-
+    
     alert(alertMessage);
-
+    
+    // Reset form
     setFormData({
       fleetNumber: '',
       date: new Date().toISOString().split('T')[0],
@@ -233,6 +228,7 @@ const ManualDieselEntryModal: React.FC<ManualDieselEntryModalProps> = ({
     return distance > 0 && litres > 0 ? distance / litres : 0;
   };
 
+  // Calculate probe discrepancy
   const calculateProbeDiscrepancy = () => {
     if (!hasProbe || !formData.probeReading || !formData.litresFilled) return null;
     
@@ -354,6 +350,7 @@ const ManualDieselEntryModal: React.FC<ManualDieselEntryModalProps> = ({
             error={errors.litresFilled}
           />
 
+          {/* NEW: Probe Reading field for trucks with probes */}
           {hasProbe && (
             <Input
               label="Probe Reading (Litres) *"
@@ -418,6 +415,7 @@ const ManualDieselEntryModal: React.FC<ManualDieselEntryModalProps> = ({
             error={errors.driverName}
           />
 
+          {/* Trip Linkage */}
           <Select
             label="Link to Trip (Optional)"
             value={formData.tripId}

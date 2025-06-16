@@ -1,49 +1,12 @@
-// ─── React ───────────────────────────────────────────────────────
 import React, { useState, useMemo } from 'react';
-
-// ─── Context ─────────────────────────────────────────────────────
-import { useAppContext } from '../../context/AppContext.tsx';
-
-// ─── Types ───────────────────────────────────────────────────────
-import {
-  DriverBehaviorEvent,
-  DriverBehaviorEventType,
-  DRIVER_BEHAVIOR_EVENT_TYPES,
-  DRIVERS,
-  FLEET_NUMBERS
-} from '../../types';
-
-// ─── UI Components ───────────────────────────────────────────────
-import Card, { CardContent, CardHeader } from '../ui/Card.tsx';
-import Button from '../ui/Button.tsx';
-import { Input, Select, TextArea } from '../ui/FormElements.tsx';
-import Modal from '../ui/Modal.tsx';
-
-// ─── Icons ───────────────────────────────────────────────────────
-import {
-  User as UserRound,
-  AlertTriangle,
-  CheckCircle,
-  TrendingUp,
-  TrendingDown,
-  Calendar,
-  Filter,
-  Plus,
-  FileText,
-  X,
-  Save,
-  Eye,
-  Edit,
-  Trash2,
-  Shield,
-  Clock,
-  MapPin,
-  FileUp
-} from 'lucide-react';
-
-// ─── Utilities ───────────────────────────────────────────────────
-import { formatDate, formatDateTime } from '../../utils/helpers.ts';
-
+import { useAppContext } from '../../context/AppContext';
+import { DriverBehaviorEvent, DriverBehaviorEventType, DRIVER_BEHAVIOR_EVENT_TYPES, DRIVERS, FLEET_NUMBERS } from '../../types';
+import Card, { CardContent, CardHeader } from '../ui/Card';
+import Button from '../ui/Button';
+import { Input, Select, TextArea } from '../ui/FormElements';
+import Modal from '../ui/Modal';
+import { User as UserRound, AlertTriangle, CheckCircle, TrendingUp, TrendingDown, Calendar, Filter, Plus, FileText, X, Save, Eye, Edit, Trash2, Shield, Clock, MapPin, FileUp } from 'lucide-react';
+import { formatDate, formatDateTime } from '../../utils/helpers';
 
 const DriverPerformanceOverview: React.FC = () => {
   const { driverBehaviorEvents, addDriverBehaviorEvent, updateDriverBehaviorEvent, deleteDriverBehaviorEvent, getAllDriversPerformance } = useAppContext();

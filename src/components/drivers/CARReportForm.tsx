@@ -1,31 +1,11 @@
-// ─── React ───────────────────────────────────────────────────────
 import React, { useState, useEffect } from 'react';
-
-// ─── Types ───────────────────────────────────────────────────────
 import { CARReport, DriverBehaviorEvent, RESPONSIBLE_PERSONS } from '../../types';
-
-// ─── Context ─────────────────────────────────────────────────────
-import { useAppContext } from '../../context/AppContext.tsx';
-
-// ─── UI Components ───────────────────────────────────────────────
-import Modal from '../ui/Modal.tsx';
-import Button from '../ui/Button.tsx';
-import { Input, Select, TextArea } from '../ui/FormElements.tsx';
-
-// ─── Icons ───────────────────────────────────────────────────────
-import {
-  Save,
-  X,
-  AlertTriangle,
-  FileText,
-  Calendar,
-  User,
-  FileUp
-} from 'lucide-react';
-
-// ─── Utilities ───────────────────────────────────────────────────
-import { formatDate } from '../../utils/helpers.ts';
-
+import { useAppContext } from '../../context/AppContext';
+import Modal from '../ui/Modal';
+import Button from '../ui/Button';
+import { Input, Select, TextArea } from '../ui/FormElements';
+import { Save, X, AlertTriangle, FileText, Calendar, User, FileUp } from 'lucide-react';
+import { formatDate } from '../../utils/helpers';
 
 interface CARReportFormProps {
   isOpen: boolean;

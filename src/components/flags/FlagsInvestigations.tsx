@@ -1,67 +1,38 @@
-// ─── React ───────────────────────────────────────────────────────
 import React, { useState } from 'react';
-
-// ─── Types ───────────────────────────────────────────────────────
 import { Trip, FlaggedCost } from '../../types';
-
-// ─── Context ─────────────────────────────────────────────────────
-import { useAppContext } from '../../context/AppContext.tsx';
-
-// ─── UI Components ───────────────────────────────────────────────
-import Card, { CardContent, CardHeader } from '../ui/Card.tsx';
-import Button from '../ui/Button.tsx';
-import { Input, Select } from '../ui/FormElements.tsx';
-import FlagResolutionModal from './FlagResolutionModal.tsx';
-
-// ─── Icons ───────────────────────────────────────────────────────
-import {
-  AlertTriangle,
-  Eye,
-  CheckCircle,
-  Clock,
-  Play,
-  Flag,
-  Upload,
-  Edit
-} from 'lucide-react';
-
-// ─── Utilities ───────────────────────────────────────────────────
-import { formatCurrency, formatDate, getAllFlaggedCosts } from '../../utils/helpers.ts';
-
+import { useAppContext } from '../../context/AppContext';
+import Card, { CardContent, CardHeader } from '../ui/Card';
+import Button from '../ui/Button';
+import { Input, Select } from '../ui/FormElements';
+import FlagResolutionModal from './FlagResolutionModal';
+import { AlertTriangle, Eye, CheckCircle, Clock, Play, Flag, Upload, Edit } from 'lucide-react';
+import { formatCurrency, formatDate, getAllFlaggedCosts } from '../../utils/helpers';
 
 interface FlagsInvestigationsProps {
   trips: Trip[];
 }
 
 const FlagsInvestigations: React.FC<FlagsInvestigationsProps> = ({ trips }) => {
-  const { updateCostEntry, completeTrip } = useAppContext();
+  const { updateCostEntry } = useAppContext();
   const [selectedCost, setSelectedCost] = useState<FlaggedCost | null>(null);
   const [showResolutionModal, setShowResolutionModal] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [driverFilter, setDriverFilter] = useState<string>('');
 
   const flaggedCosts = getAllFlaggedCosts(trips);
-
+  
   const filteredCosts = flaggedCosts.filter(cost => {
     if (statusFilter && cost.investigationStatus !== statusFilter) return false;
     if (driverFilter && !trips.find(t => t.id === cost.tripId)?.driverName.includes(driverFilter)) return false;
     return true;
   });
 
-  const handleResolveFlag = (updatedCost: CostEntry, resolutionComment: string) => {
+  const handleResolveFlag = (updatedCost: any, resolutionComment: string) => {
     updateCostEntry(updatedCost);
     setShowResolutionModal(false);
     setSelectedCost(null);
-
-    alert(`Flag resolved successfully!\n\nResolution: ${resolutionComment}\n\nThe cost entry has been updated and marked as resolved.`);
-
-    // Check if all flags for the trip are resolved - if yes, mark trip as completed
-    const unresolvedFlagsForTrip = flaggedCosts.filter(c => c.tripId === updatedCost.tripId && c.investigationStatus !== 'resolved');
-
-    if (unresolvedFlagsForTrip.length === 0) {
-      completeTrip(updatedCost.tripId);
-      alert(`All flags for Trip ${updatedCost.tripFleetNumber} are resolved. Trip marked as completed.`);
-    }
+    
+    alert(`Flag resolved successfully!\n\nResolution: ${resolutionComment}\n\nThe cost entry has been updated and marked as resolved. If this was the last unresolved flag for the trip, it will be automatically moved to Completed Trips.`);
   };
 
   const handleOpenResolution = (cost: FlaggedCost) => {
@@ -210,7 +181,7 @@ const FlagsInvestigations: React.FC<FlagsInvestigationsProps> = ({ trips }) => {
           {filteredCosts.map((cost) => {
             const trip = trips.find(t => t.id === cost.tripId);
             const canResolve = cost.investigationStatus !== 'resolved';
-
+            
             return (
               <Card key={cost.id} className="hover:shadow-md transition-shadow">
                 <CardContent className="p-4">
@@ -228,7 +199,7 @@ const FlagsInvestigations: React.FC<FlagsInvestigationsProps> = ({ trips }) => {
                           </span>
                         )}
                       </div>
-
+                      
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-3">
                         <div>
                           <p className="text-sm text-gray-500">Trip</p>
@@ -293,7 +264,11 @@ const FlagsInvestigations: React.FC<FlagsInvestigationsProps> = ({ trips }) => {
 
                       <div className="flex justify-end space-x-2">
                         {canResolve ? (
-                          <Button size="sm" onClick={() => handleOpenResolution(cost)} icon={<Edit className="w-3 h-3" />}>
+                          <Button
+                            size="sm"
+                            onClick={() => handleOpenResolution(cost)}
+                            icon={<Edit className="w-3 h-3" />}
+                          >
                             Resolve Flag
                           </Button>
                         ) : (

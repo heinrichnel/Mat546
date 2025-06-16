@@ -1,77 +1,35 @@
-// ─── React & State ───────────────────────────────────────────────
 import React, { useState } from 'react';
-
-// ─── Types ───────────────────────────────────────────────────────
 import { Trip, CostEntry, AdditionalCost } from '../../types';
-
-// ─── Context ─────────────────────────────────────────────────────
-import { useAppContext } from '../../context/AppContext.tsx';
-
-// ─── UI Components ───────────────────────────────────────────────
-import Modal from '../ui/Modal.tsx';
-import Button from '../ui/Button.tsx';
-import Card, { CardContent, CardHeader } from '../ui/Card.tsx';
-import { Input, Select, TextArea, FileUpload } from '../ui/FormElements.tsx';
-
-// ─── Custom Modules ──────────────────────────────────────────────
-import CostForm from '../costs/CostForm.tsx';
-import CostList from '../costs/CostList.tsx';
-import SystemCostGenerator from '../costs/IndirectCost.tsx';
-import TripPlanningForm from '../planning/TripPlanningForm.tsx';
-import InvoiceSubmissionModal from './InvoiceSubmissionModal.tsx';
-import TripReport from '../reports/TripReport.tsx';
-
-// ─── Helpers ─────────────────────────────────────────────────────
-import {
-  formatCurrency,
-  formatDate,
-  formatDateTime,
-  calculateTotalCosts,
-  calculateKPIs,
-  getFileIcon,
-  getFlaggedCostsCount,
-  getUnresolvedFlagsCount,
-  canCompleteTrip
-} from '../../utils/helpers.ts';
-
-// ─── Icons ───────────────────────────────────────────────────────
-import {
-  AlertTriangle,
-  ArrowLeft,
-  BarChart3,
-  Bell,
-  Building,
-  Calendar,
+import { useAppContext } from '../../context/AppContext';
+import Card, { CardContent, CardHeader } from '../ui/Card';
+import Button from '../ui/Button';
+import Modal from '../ui/Modal';
+import CostForm from '../costs/CostForm';
+import CostList from '../costs/CostList';
+import TripReport from '../reports/TripReport';
+import SystemCostGenerator from '../costs/SystemCostGenerator';
+import InvoiceSubmissionModal from './InvoiceSubmissionModal';
+import TripPlanningForm from '../planning/TripPlanningForm';
+import { 
+  Plus, 
+  ArrowLeft, 
+  BarChart3, 
+  CheckCircle, 
+  AlertTriangle, 
+  Flag, 
   Calculator,
-  CheckCircle,
-  Clock,
-  DollarSign,
-  Download,
-  Edit,
-  Eye,
-  FileSpreadsheet,
-  FileText,
-  FileUp,
-  FileX,
-  Flag,
-  History,
-  Image,
-  Lock,
-  MapPin,
-  Navigation,
-  Paperclip,
-  Plus,
-  Save,
   Send,
-  Shield,
-  Trash2,
-  TrendingDown,
-  TrendingUp,
-  Upload,
-  User,
-  X
+  Clock,
+  Calendar
 } from 'lucide-react';
-
+import { 
+  formatCurrency, 
+  calculateKPIs, 
+  getFlaggedCostsCount, 
+  getUnresolvedFlagsCount, 
+  canCompleteTrip,
+  formatDateTime
+} from '../../utils/helpers';
 
 interface TripDetailsProps {
   trip: Trip;

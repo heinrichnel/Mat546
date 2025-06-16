@@ -1,5 +1,4 @@
 import React from 'react';
-import Button from '../ui/Button.js';
 
 type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'danger';
 type ButtonSize = 'sm' | 'md' | 'lg';

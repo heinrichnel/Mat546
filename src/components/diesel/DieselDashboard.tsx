@@ -1,32 +1,23 @@
-// ─── React ───────────────────────────────────────────────────────
-import React, { useState } from 'react';
-
-// ─── Context ─────────────────────────────────────────────────────
-import { useAppContext } from '../../context/AppContext.tsx';
-
-// ─── Modals ──────────────────────────────────────────────────────
-import DieselImportModal from './DieselImportModal.tsx';
-import DieselDebriefModal from './DieselDebriefModal.tsx';
-import DieselNormsModal from './DieselNormsModal.tsx';
-import ManualDieselEntryModal from './ManualDieselEntryModal.tsx';
-import TripLinkageModal from './TripLinkageModal.tsx';
-import ProbeVerificationModal from './ProbeVerificationModal.tsx';
-
-// ─── UI Components ───────────────────────────────────────────────
-import Card, { CardContent, CardHeader } from '../ui/Card.tsx';
-import Button from '../ui/Button.tsx';
-import { Select } from '../ui/FormElements.tsx';
-import SyncIndicator from '../ui/SyncIndicator.tsx';
-
-// ─── Icons ───────────────────────────────────────────────────────
-import {
-  Upload,
-  Trash2,
-  Edit,
-  Save,
-  X,
-  AlertTriangle,
-  TrendingDown,
+import React, { useState, useEffect } from 'react';
+import { useAppContext } from '../../context/AppContext';
+import DieselImportModal from './DieselImportModal';
+import DieselDebriefModal from './DieselDebriefModal';
+import DieselNormsModal from './DieselNormsModal';
+import ManualDieselEntryModal from './ManualDieselEntryModal';
+import TripLinkageModal from './TripLinkageModal';
+import ProbeVerificationModal from './ProbeVerificationModal';
+import Card, { CardContent, CardHeader } from '../ui/Card';
+import Button from '../ui/Button';
+import { Input, Select } from '../ui/FormElements';
+import SyncIndicator from '../ui/SyncIndicator';
+import { 
+  Upload, 
+  Trash2, 
+  Edit, 
+  Save, 
+  X, 
+  AlertTriangle, 
+  TrendingDown, 
   TrendingUp,
   Fuel,
   Calculator,
@@ -35,20 +26,18 @@ import {
   Flag,
   CheckCircle,
   Plus,
-  Link
+  Link,
+  FileText,
+  Printer,
+  Database
 } from 'lucide-react';
-
-// ─── Utilities ───────────────────────────────────────────────────
-import { formatCurrency, formatDate } from '../../utils/helpers.ts';
-
-// ─── Constants / Types ───────────────────────────────────────────
+import { formatCurrency, formatDate } from '../../utils/helpers';
 import { TRUCKS_WITH_PROBES } from '../../types';
-
 
 interface DieselNorms {
   fleetNumber: string;
   expectedKmPerLitre: number;
-  tolerancePercentage: number;
+  tolerancePercentage: number; // e.g., 10% = 10
   lastUpdated: string;
   updatedBy: string;
 }
@@ -103,50 +92,55 @@ const DieselDashboard: React.FC = () => {
   const [filterCurrency, setFilterCurrency] = useState<string>('');
   const [filterProbeStatus, setFilterProbeStatus] = useState<string>('');
 
-  // Compute enhanced diesel records with calculations and flags
+  // Calculate enhanced metrics for each record
   const enhancedRecords = dieselRecords.map(record => {
     const norm = dieselNorms.find(n => n.fleetNumber === record.fleetNumber);
     const expectedKmPerLitre = norm?.expectedKmPerLitre || 3.0;
     const tolerance = norm?.tolerancePercentage || 10;
-
-    // Calculate distance travelled if missing
-    let distanceTravelled = record.distanceTravelled ?? 0;
-    if (!distanceTravelled && record.previousKmReading !== undefined && record.kmReading !== undefined) {
+    
+    // Calculate distance travelled if not provided
+    let distanceTravelled = record.distanceTravelled || 0;
+    if (!distanceTravelled && record.previousKmReading && record.kmReading) {
       distanceTravelled = record.kmReading - record.previousKmReading;
     }
-
-    // Calculate km per litre if missing
-    let kmPerLitre = record.kmPerLitre ?? 0;
+    
+    // Calculate KM/L if not provided
+    let kmPerLitre = record.kmPerLitre || 0;
     if (!kmPerLitre && distanceTravelled > 0 && record.litresFilled > 0) {
       kmPerLitre = distanceTravelled / record.litresFilled;
     }
-
-    // Cost calculations
+    
+    // Calculate cost per KM
     const costPerKm = distanceTravelled > 0 ? record.totalCost / distanceTravelled : 0;
-    const costPerLitre = record.costPerLitre ?? (record.litresFilled > 0 ? record.totalCost / record.litresFilled : 0);
-
-    // Performance variance and status
+    
+    // Calculate cost per litre if not provided
+    const costPerLitre = record.costPerLitre || (record.litresFilled > 0 ? record.totalCost / record.litresFilled : 0);
+    
+    // Performance analysis
     const efficiencyVariance = ((kmPerLitre - expectedKmPerLitre) / expectedKmPerLitre) * 100;
-    const isWithinTolerance = Math.abs(efficiencyVariance) <= tolerance;
-    const performanceStatus = isWithinTolerance
-      ? 'normal'
-      : efficiencyVariance < -tolerance
-      ? 'poor'
-      : 'excellent';
-
-    // Debrief flag
+    const toleranceRange = tolerance;
+    const isWithinTolerance = Math.abs(efficiencyVariance) <= toleranceRange;
+    const performanceStatus = isWithinTolerance ? 'normal' : 
+                             efficiencyVariance < -toleranceRange ? 'poor' : 'excellent';
+    
+    // Flag for debrief if outside tolerance
     const requiresDebrief = !isWithinTolerance;
-
-    // Linked trip info
+    
+    // Get linked trip info if available
     const linkedTrip = record.tripId ? trips.find(t => t.id === record.tripId) : undefined;
-
-    // Probe info
+    
+    // Check if truck has probe
     const hasProbe = TRUCKS_WITH_PROBES.includes(record.fleetNumber);
-    const probeDiscrepancy = record.probeDiscrepancy !== undefined
-      ? record.probeDiscrepancy
-      : (hasProbe && record.probeReading !== undefined ? record.litresFilled - record.probeReading : undefined);
-    const needsProbeVerification = hasProbe && (!record.probeVerified || (probeDiscrepancy !== undefined && Math.abs(probeDiscrepancy) > 50));
-
+    
+    // Calculate probe discrepancy
+    const probeDiscrepancy = record.probeDiscrepancy !== undefined ? record.probeDiscrepancy : 
+                            (hasProbe && record.probeReading !== undefined ? record.litresFilled - record.probeReading : undefined);
+    
+    // Determine if probe verification is needed
+    const needsProbeVerification = hasProbe && 
+                                  (!record.probeVerified || 
+                                   (probeDiscrepancy !== undefined && Math.abs(probeDiscrepancy) > 50));
+    
     return {
       ...record,
       distanceTravelled,
@@ -157,17 +151,20 @@ const DieselDashboard: React.FC = () => {
       efficiencyVariance,
       performanceStatus,
       requiresDebrief,
-      linkedTripInfo: linkedTrip
-        ? { route: linkedTrip.route, startDate: linkedTrip.startDate, endDate: linkedTrip.endDate }
-        : undefined,
+      toleranceRange,
+      linkedTripInfo: linkedTrip ? {
+        route: linkedTrip.route,
+        startDate: linkedTrip.startDate,
+        endDate: linkedTrip.endDate
+      } : undefined,
       hasProbe,
       probeDiscrepancy,
       needsProbeVerification,
-      currency: record.currency || 'ZAR'
+      currency: record.currency || 'ZAR' // Default to ZAR if not specified
     };
   });
 
-  // Filter records
+  // Apply filters
   const filteredRecords = enhancedRecords.filter(record => {
     if (filterFleet && record.fleetNumber !== filterFleet) return false;
     if (filterDriver && record.driverName !== filterDriver) return false;
@@ -182,10 +179,10 @@ const DieselDashboard: React.FC = () => {
     return true;
   });
 
-  const handleEdit = (id: string) => {
-    const record = dieselRecords.find(r => r.id === id);
+  const handleEdit = (recordId: string) => {
+    const record = dieselRecords.find(r => r.id === recordId);
     if (record) {
-      setEditingId(id);
+      setEditingId(recordId);
       setEditData({
         litresFilled: record.litresFilled.toString(),
         totalCost: record.totalCost.toString(),
@@ -198,37 +195,39 @@ const DieselDashboard: React.FC = () => {
     }
   };
 
-  const handleSave = (id: string) => {
-    const record = dieselRecords.find(r => r.id === id);
-    if (!record) return;
-
-    const litresFilled = parseFloat(editData.litresFilled);
-    const totalCost = parseFloat(editData.totalCost);
-    const kmReading = parseFloat(editData.kmReading);
-    const previousKmReading = editData.previousKmReading ? parseFloat(editData.previousKmReading) : undefined;
-    const probeReading = editData.probeReading ? parseFloat(editData.probeReading) : undefined;
-
-    const distanceTravelled = previousKmReading !== undefined ? kmReading - previousKmReading : record.distanceTravelled;
-    const kmPerLitre = distanceTravelled && litresFilled > 0 ? distanceTravelled / litresFilled : undefined;
-    const costPerLitre = litresFilled > 0 ? totalCost / litresFilled : 0;
-    const probeDiscrepancy = probeReading !== undefined ? litresFilled - probeReading : undefined;
-
-    updateDieselRecord({
-      ...record,
-      litresFilled,
-      totalCost,
-      kmReading,
-      previousKmReading,
-      distanceTravelled,
-      kmPerLitre,
-      costPerLitre,
-      tripId: editData.tripId || undefined,
-      currency: editData.currency as 'USD' | 'ZAR',
-      probeReading,
-      probeDiscrepancy,
-      probeVerified: probeReading !== undefined
-    });
-
+  const handleSave = (recordId: string) => {
+    const record = dieselRecords.find(r => r.id === recordId);
+    if (record) {
+      const litresFilled = parseFloat(editData.litresFilled);
+      const totalCost = parseFloat(editData.totalCost);
+      const kmReading = parseFloat(editData.kmReading);
+      const previousKmReading = editData.previousKmReading ? parseFloat(editData.previousKmReading) : undefined;
+      const probeReading = editData.probeReading ? parseFloat(editData.probeReading) : undefined;
+      
+      // Calculate derived values
+      const distanceTravelled = previousKmReading ? kmReading - previousKmReading : record.distanceTravelled;
+      const kmPerLitre = distanceTravelled && litresFilled > 0 ? distanceTravelled / litresFilled : undefined;
+      const costPerLitre = litresFilled > 0 ? totalCost / litresFilled : 0;
+      
+      // Calculate probe discrepancy if applicable
+      const probeDiscrepancy = probeReading !== undefined ? litresFilled - probeReading : undefined;
+      
+      updateDieselRecord({
+        ...record,
+        litresFilled,
+        totalCost,
+        kmReading,
+        previousKmReading,
+        distanceTravelled,
+        kmPerLitre,
+        costPerLitre,
+        tripId: editData.tripId || undefined,
+        currency: editData.currency as 'USD' | 'ZAR',
+        probeReading,
+        probeDiscrepancy,
+        probeVerified: probeReading !== undefined
+      });
+    }
     setEditingId(null);
   };
 
@@ -245,20 +244,20 @@ const DieselDashboard: React.FC = () => {
     });
   };
 
-  const handleDelete = (id: string) => {
-    const record = dieselRecords.find(r => r.id === id);
-    if (record && confirm(`Are you sure you want to delete diesel record for Fleet ${record.fleetNumber} on ${record.date}?`)) {
-      deleteDieselRecord(id);
+  const handleDelete = (recordId: string) => {
+    const record = dieselRecords.find(r => r.id === recordId);
+    if (record && confirm(`Are you sure you want to delete the diesel record for Fleet ${record.fleetNumber} on ${record.date}?`)) {
+      deleteDieselRecord(recordId);
     }
   };
 
-  const handleLinkToTrip = (id: string) => {
-    setSelectedDieselId(id);
+  const handleLinkToTrip = (recordId: string) => {
+    setSelectedDieselId(recordId);
     setIsTripLinkageModalOpen(true);
   };
 
-  const handleVerifyProbe = (id: string) => {
-    setSelectedDieselId(id);
+  const handleVerifyProbe = (recordId: string) => {
+    setSelectedDieselId(recordId);
     setIsProbeVerificationModalOpen(true);
   };
 
@@ -273,20 +272,20 @@ const DieselDashboard: React.FC = () => {
 22H,2025-01-17,156000,154824,420,18.75,7875,Shell Mutare,Lovemore Qochiwe,Regular refuel,ZAR,415`;
 
     const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', 'diesel-import-template.csv');
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "diesel-import-template.csv");
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
-  // Fleet summary aggregation
+  // Calculate fleet summary
   const fleetSummary = filteredRecords.reduce((acc, record) => {
     acc.totalRecords++;
     acc.totalLitres += record.litresFilled;
     acc.totalCost += record.totalCost;
-    acc.totalDistance += record.distanceTravelled ?? 0;
+    acc.totalDistance += record.distanceTravelled || 0;
     if (record.requiresDebrief) acc.recordsRequiringDebrief++;
     if (record.performanceStatus === 'poor') acc.poorPerformanceRecords++;
     if (record.performanceStatus === 'excellent') acc.excellentPerformanceRecords++;
@@ -294,7 +293,8 @@ const DieselDashboard: React.FC = () => {
     if (record.hasProbe) acc.recordsWithProbe++;
     if (record.needsProbeVerification) acc.recordsNeedingProbeVerification++;
     if (record.probeVerified) acc.recordsWithVerifiedProbe++;
-
+    
+    // Track by currency
     if (record.currency === 'USD') {
       acc.usdRecords++;
       acc.usdTotalCost += record.totalCost;
@@ -302,6 +302,7 @@ const DieselDashboard: React.FC = () => {
       acc.zarRecords++;
       acc.zarTotalCost += record.totalCost;
     }
+    
     return acc;
   }, {
     totalRecords: 0,
@@ -324,10 +325,10 @@ const DieselDashboard: React.FC = () => {
   const averageKmPerLitre = fleetSummary.totalLitres > 0 ? fleetSummary.totalDistance / fleetSummary.totalLitres : 0;
   const averageCostPerKm = fleetSummary.totalDistance > 0 ? fleetSummary.totalCost / fleetSummary.totalDistance : 0;
 
-  // Get unique filter options
-  const uniqueFleets = Array.from(new Set(enhancedRecords.map(r => r.fleetNumber))).sort();
-  const uniqueDrivers = Array.from(new Set(enhancedRecords.map(r => r.driverName))).sort();
-  const uniqueDates = Array.from(new Set(enhancedRecords.map(r => r.date))).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+  // Get unique drivers and fleets for filters
+  const uniqueFleets = [...new Set(enhancedRecords.map(r => r.fleetNumber))].sort();
+  const uniqueDrivers = [...new Set(enhancedRecords.map(r => r.driverName))].sort();
+  const uniqueDates = [...new Set(enhancedRecords.map(r => r.date))].sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
 
   return (
     <div className="space-y-6">
@@ -341,16 +342,28 @@ const DieselDashboard: React.FC = () => {
           </div>
         </div>
         <div className="flex space-x-3">
-          <Button variant="outline" onClick={exportCSVTemplate} icon={<FileSpreadsheet className="w-4 h-4" />}>
+          <Button 
+            variant="outline" 
+            onClick={exportCSVTemplate}
+            icon={<FileSpreadsheet className="w-4 h-4" />}
+          >
             Download CSV Template
           </Button>
-          <Button variant="outline" onClick={() => setIsNormsModalOpen(true)} icon={<Settings className="w-4 h-4" />}>
+          <Button 
+            variant="outline" 
+            onClick={() => setIsNormsModalOpen(true)}
+            icon={<Settings className="w-4 h-4" />}
+          >
             Configure Norms
           </Button>
-          <Button variant="outline" onClick={() => setIsDebriefModalOpen(true)} icon={<Flag className="w-4 h-4" />}>
+          <Button 
+            variant="outline"
+            onClick={() => setIsDebriefModalOpen(true)}
+            icon={<Flag className="w-4 h-4" />}
+          >
             Fleet Debrief ({fleetSummary.recordsRequiringDebrief})
           </Button>
-          <Button
+          <Button 
             variant="outline"
             onClick={() => setIsManualEntryModalOpen(true)}
             icon={<Plus className="w-4 h-4" />}
@@ -358,8 +371,8 @@ const DieselDashboard: React.FC = () => {
           >
             Manual Entry
           </Button>
-          <Button
-            icon={<Upload className="w-4 h-4" />}
+          <Button 
+            icon={<Upload className="w-4 h-4" />} 
             onClick={() => setIsImportModalOpen(true)}
             disabled={connectionStatus !== 'connected'}
           >
@@ -372,7 +385,7 @@ const DieselDashboard: React.FC = () => {
       {connectionStatus !== 'connected' && (
         <div className="bg-amber-50 border border-amber-200 rounded-md p-4">
           <div className="flex items-start space-x-3">
-            <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5" />
+            <Database className="w-5 h-5 text-amber-600 mt-0.5" />
             <div>
               <h4 className="text-sm font-medium text-amber-800">Working Offline</h4>
               <p className="text-sm text-amber-700 mt-1">
@@ -391,11 +404,14 @@ const DieselDashboard: React.FC = () => {
             <div>
               <h4 className="text-sm font-medium text-red-800">Probe Verification Required</h4>
               <p className="text-sm text-red-700 mt-1">
-                {fleetSummary.recordsNeedingProbeVerification} diesel record{fleetSummary.recordsNeedingProbeVerification !== 1 ? 's' : ''} require probe verification.
+                {fleetSummary.recordsNeedingProbeVerification} diesel record{fleetSummary.recordsNeedingProbeVerification !== 1 ? 's' : ''} require probe verification. 
                 These records have significant discrepancies between filled amount and probe reading.
               </p>
               <div className="mt-3">
-                <Button size="sm" onClick={() => setFilterProbeStatus('needs-verification')}>
+                <Button
+                  size="sm"
+                  onClick={() => setFilterProbeStatus('needs-verification')}
+                >
                   View Records Needing Verification
                 </Button>
               </div>
@@ -412,7 +428,9 @@ const DieselDashboard: React.FC = () => {
               <div>
                 <p className="text-sm text-gray-500">Total Records</p>
                 <p className="text-2xl font-bold text-gray-900">{fleetSummary.totalRecords}</p>
-                <p className="text-xs text-gray-400">{fleetSummary.linkedToTrips} linked to trips</p>
+                <p className="text-xs text-gray-400">
+                  {fleetSummary.linkedToTrips} linked to trips
+                </p>
               </div>
               <Fuel className="w-8 h-8 text-blue-500" />
             </div>
@@ -439,7 +457,9 @@ const DieselDashboard: React.FC = () => {
                 <p className="text-sm text-gray-500">Total Cost</p>
                 <div className="space-y-1">
                   <p className="text-lg font-bold text-red-600">{formatCurrency(fleetSummary.zarTotalCost, 'ZAR')}</p>
-                  {fleetSummary.usdTotalCost > 0 && <p className="text-lg font-bold text-red-600">{formatCurrency(fleetSummary.usdTotalCost, 'USD')}</p>}
+                  {fleetSummary.usdTotalCost > 0 && (
+                    <p className="text-lg font-bold text-red-600">{formatCurrency(fleetSummary.usdTotalCost, 'USD')}</p>
+                  )}
                 </div>
               </div>
               <TrendingUp className="w-8 h-8 text-red-500" />
@@ -472,20 +492,32 @@ const DieselDashboard: React.FC = () => {
               onChange={(e) => setFilterFleet(e.target.value)}
               options={[
                 { label: 'All Fleets', value: '' },
-                ...uniqueFleets.map(fleet => ({ label: `${fleet}${TRUCKS_WITH_PROBES.includes(fleet) ? ' (Probe)' : ''}`, value: fleet }))
+                ...uniqueFleets.map(fleet => ({ 
+                  label: `${fleet}${TRUCKS_WITH_PROBES.includes(fleet) ? ' (Probe)' : ''}`, 
+                  value: fleet 
+                }))
               ]}
             />
             <Select
               label="Driver"
               value={filterDriver}
               onChange={(e) => setFilterDriver(e.target.value)}
-              options={[{ label: 'All Drivers', value: '' }, ...uniqueDrivers.map(driver => ({ label: driver, value: driver }))]}
+              options={[
+                { label: 'All Drivers', value: '' },
+                ...uniqueDrivers.map(driver => ({ label: driver, value: driver }))
+              ]}
             />
             <Select
               label="Date"
               value={filterDate}
               onChange={(e) => setFilterDate(e.target.value)}
-              options={[{ label: 'All Dates', value: '' }, ...uniqueDates.map(date => ({ label: formatDate(date), value: date }))]}
+              options={[
+                { label: 'All Dates', value: '' },
+                ...uniqueDates.map(date => ({ 
+                  label: formatDate(date), 
+                  value: date 
+                }))
+              ]}
             />
             <Select
               label="Currency"
@@ -571,12 +603,12 @@ const DieselDashboard: React.FC = () => {
           </div>
           <h3 className="text-lg font-medium text-gray-900 mb-2">No diesel records found</h3>
           <p className="text-gray-500 mb-6">
-            {enhancedRecords.length > 0
-              ? 'No records match your current filter criteria.'
+            {enhancedRecords.length > 0 
+              ? 'No records match your current filter criteria.' 
               : 'Import your diesel consumption data to start tracking fuel efficiency and costs.'}
           </p>
           <div className="flex justify-center space-x-3">
-            <Button
+            <Button 
               variant="outline"
               onClick={() => setIsManualEntryModalOpen(true)}
               icon={<Plus className="w-4 h-4" />}
@@ -584,8 +616,8 @@ const DieselDashboard: React.FC = () => {
             >
               Manual Entry
             </Button>
-            <Button
-              icon={<Upload className="w-4 h-4" />}
+            <Button 
+              icon={<Upload className="w-4 h-4" />} 
               onClick={() => setIsImportModalOpen(true)}
               disabled={connectionStatus !== 'connected'}
             >
@@ -596,20 +628,12 @@ const DieselDashboard: React.FC = () => {
       ) : (
         <div className="grid gap-4">
           {filteredRecords.map(record => (
-            <Card
-              key={record.id}
-              className={`hover:shadow-md transition-shadow ${
-                record.needsProbeVerification
-                  ? 'border-l-4 border-l-red-400'
-                  : record.requiresDebrief
-                  ? 'border-l-4 border-l-amber-400'
-                  : record.performanceStatus === 'excellent'
-                  ? 'border-l-4 border-l-green-400'
-                  : record.performanceStatus === 'poor'
-                  ? 'border-l-4 border-l-red-400'
-                  : ''
-              }`}
-            >
+            <Card key={record.id} className={`hover:shadow-md transition-shadow ${
+              record.needsProbeVerification ? 'border-l-4 border-l-red-400' :
+              record.requiresDebrief ? 'border-l-4 border-l-amber-400' : 
+              record.performanceStatus === 'excellent' ? 'border-l-4 border-l-green-400' :
+              record.performanceStatus === 'poor' ? 'border-l-4 border-l-red-400' : ''
+            }`}>
               <CardHeader
                 title={`Fleet ${record.fleetNumber}`}
                 subtitle={
@@ -621,15 +645,11 @@ const DieselDashboard: React.FC = () => {
                         Requires Debrief
                       </span>
                     )}
-                    <span
-                      className={`inline-flex items-center px-2 py-1 rounded-full text-xs ${
-                        record.performanceStatus === 'excellent'
-                          ? 'bg-green-100 text-green-800'
-                          : record.performanceStatus === 'poor'
-                          ? 'bg-red-100 text-red-800'
-                          : 'bg-gray-100 text-gray-800'
-                      }`}
-                    >
+                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs ${
+                      record.performanceStatus === 'excellent' ? 'bg-green-100 text-green-800' :
+                      record.performanceStatus === 'poor' ? 'bg-red-100 text-red-800' :
+                      'bg-gray-100 text-gray-800'
+                    }`}>
                       {record.performanceStatus.toUpperCase()}
                     </span>
                     {record.linkedTripInfo && (
@@ -639,17 +659,15 @@ const DieselDashboard: React.FC = () => {
                       </span>
                     )}
                     {record.hasProbe && (
-                      <span
-                        className={`inline-flex items-center px-2 py-1 rounded-full text-xs ${
-                          record.probeVerified && (!record.probeDiscrepancy || Math.abs(record.probeDiscrepancy) <= 50)
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-red-100 text-red-800'
-                        }`}
-                      >
-                        {record.probeVerified
-                          ? !record.probeDiscrepancy || Math.abs(record.probeDiscrepancy) <= 50
-                            ? 'Probe Verified'
-                            : 'Probe Discrepancy'
+                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs ${
+                        record.probeVerified && (!record.probeDiscrepancy || Math.abs(record.probeDiscrepancy) <= 50) 
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-red-100 text-red-800'
+                      }`}>
+                        {record.probeVerified 
+                          ? ((!record.probeDiscrepancy || Math.abs(record.probeDiscrepancy) <= 50) 
+                            ? 'Probe Verified' 
+                            : 'Probe Discrepancy') 
                           : 'Needs Probe Verification'}
                       </span>
                     )}
@@ -673,7 +691,7 @@ const DieselDashboard: React.FC = () => {
                         type="number"
                         className="border rounded px-2 py-1 w-full text-sm"
                         value={editData.kmReading}
-                        onChange={(e) => setEditData(prev => ({ ...prev, kmReading: e.target.value }))}
+                        onChange={e => setEditData(prev => ({ ...prev, kmReading: e.target.value }))}
                       />
                     ) : (
                       <p className="font-medium">{record.kmReading.toLocaleString()}</p>
@@ -687,7 +705,7 @@ const DieselDashboard: React.FC = () => {
                         type="number"
                         className="border rounded px-2 py-1 w-full text-sm"
                         value={editData.previousKmReading}
-                        onChange={(e) => setEditData(prev => ({ ...prev, previousKmReading: e.target.value }))}
+                        onChange={e => setEditData(prev => ({ ...prev, previousKmReading: e.target.value }))}
                       />
                     ) : (
                       <p className="font-medium">{record.previousKmReading?.toLocaleString() || 'N/A'}</p>
@@ -707,7 +725,7 @@ const DieselDashboard: React.FC = () => {
                         step="0.1"
                         className="border rounded px-2 py-1 w-full text-sm"
                         value={editData.litresFilled}
-                        onChange={(e) => setEditData(prev => ({ ...prev, litresFilled: e.target.value }))}
+                        onChange={e => setEditData(prev => ({ ...prev, litresFilled: e.target.value }))}
                       />
                     ) : (
                       <p className="font-medium">{record.litresFilled}</p>
@@ -721,7 +739,7 @@ const DieselDashboard: React.FC = () => {
                         <select
                           className="border rounded px-2 py-1 text-sm"
                           value={editData.currency}
-                          onChange={(e) => setEditData(prev => ({ ...prev, currency: e.target.value }))}
+                          onChange={e => setEditData(prev => ({ ...prev, currency: e.target.value }))}
                         >
                           <option value="ZAR">ZAR</option>
                           <option value="USD">USD</option>
@@ -731,40 +749,37 @@ const DieselDashboard: React.FC = () => {
                           step="0.01"
                           className="border rounded px-2 py-1 w-full text-sm"
                           value={editData.totalCost}
-                          onChange={(e) => setEditData(prev => ({ ...prev, totalCost: e.target.value }))}
+                          onChange={e => setEditData(prev => ({ ...prev, totalCost: e.target.value }))}
                         />
                       </div>
                     ) : (
-                      <p className="font-medium text-red-600">{formatCurrency(record.totalCost, record.currency)}</p>
+                      <p className="font-medium text-red-600">
+                        {formatCurrency(record.totalCost, record.currency)}
+                      </p>
                     )}
                   </div>
 
                   <div>
                     <p className="text-sm text-gray-500">KM/L</p>
                     <div className="flex items-center space-x-2">
-                      <p
-                        className={`font-medium ${
-                          record.performanceStatus === 'excellent'
-                            ? 'text-green-600'
-                            : record.performanceStatus === 'poor'
-                            ? 'text-red-600'
-                            : 'text-gray-900'
-                        }`}
-                      >
+                      <p className={`font-medium ${
+                        record.performanceStatus === 'excellent' ? 'text-green-600' :
+                        record.performanceStatus === 'poor' ? 'text-red-600' :
+                        'text-gray-900'
+                      }`}>
                         {record.kmPerLitre?.toFixed(2) || 'N/A'}
                       </p>
                       {record.efficiencyVariance !== 0 && (
-                        <span
-                          className={`text-xs px-1 py-0.5 rounded ${
-                            record.efficiencyVariance > 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                          }`}
-                        >
-                          {record.efficiencyVariance > 0 ? '+' : ''}
-                          {record.efficiencyVariance.toFixed(1)}%
+                        <span className={`text-xs px-1 py-0.5 rounded ${
+                          record.efficiencyVariance > 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                        }`}>
+                          {record.efficiencyVariance > 0 ? '+' : ''}{record.efficiencyVariance.toFixed(1)}%
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-gray-500">Expected: {record.expectedKmPerLitre}</p>
+                    <p className="text-xs text-gray-500">
+                      Expected: {record.expectedKmPerLitre}
+                    </p>
                   </div>
 
                   <div>
@@ -778,15 +793,24 @@ const DieselDashboard: React.FC = () => {
                               step="0.1"
                               className="border rounded px-2 py-1 w-full text-sm"
                               value={editData.probeReading}
-                              onChange={(e) => setEditData(prev => ({ ...prev, probeReading: e.target.value }))}
+                              onChange={e => setEditData(prev => ({ ...prev, probeReading: e.target.value }))}
                             />
                           </div>
                         )}
                         <div className="flex space-x-2">
-                          <Button size="sm" onClick={() => handleSave(record.id)} icon={<Save className="w-4 h-4" />}>
+                          <Button 
+                            size="sm" 
+                            onClick={() => handleSave(record.id)}
+                            icon={<Save className="w-4 h-4" />}
+                          >
                             Save
                           </Button>
-                          <Button size="sm" variant="outline" onClick={handleCancel} icon={<X className="w-4 h-4" />}>
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={handleCancel}
+                            icon={<X className="w-4 h-4" />}
+                          >
                             Cancel
                           </Button>
                         </div>
@@ -794,15 +818,11 @@ const DieselDashboard: React.FC = () => {
                     ) : (
                       <div className="space-y-2">
                         {record.hasProbe && (
-                          <div
-                            className={`text-xs p-2 rounded border mb-2 ${
-                              !record.probeReading
-                                ? 'bg-yellow-50 border-yellow-200'
-                                : record.probeDiscrepancy && Math.abs(record.probeDiscrepancy) > 50
-                                ? 'bg-red-50 border-red-200'
-                                : 'bg-green-50 border-green-200'
-                            }`}
-                          >
+                          <div className={`text-xs p-2 rounded border mb-2 ${
+                            !record.probeReading ? 'bg-yellow-50 border-yellow-200' :
+                            record.probeDiscrepancy && Math.abs(record.probeDiscrepancy) > 50 ? 'bg-red-50 border-red-200' :
+                            'bg-green-50 border-green-200'
+                          }`}>
                             <div className="flex items-center space-x-1">
                               <span className="font-medium">Probe:</span>
                               {!record.probeReading ? (
@@ -812,8 +832,7 @@ const DieselDashboard: React.FC = () => {
                                   <span>{record.probeReading}L</span>
                                   {record.probeDiscrepancy !== undefined && (
                                     <span className={Math.abs(record.probeDiscrepancy) > 50 ? 'text-red-700' : 'text-green-700'}>
-                                      ({record.probeDiscrepancy > 0 ? '+' : ''}
-                                      {record.probeDiscrepancy.toFixed(1)}L diff)
+                                      ({record.probeDiscrepancy > 0 ? '+' : ''}{record.probeDiscrepancy.toFixed(1)}L diff)
                                     </span>
                                   )}
                                 </>
@@ -821,7 +840,7 @@ const DieselDashboard: React.FC = () => {
                             </div>
                           </div>
                         )}
-
+                        
                         {record.linkedTripInfo && (
                           <div className="text-xs bg-purple-50 p-2 rounded border border-purple-200">
                             <div className="flex items-center space-x-1">
@@ -834,7 +853,6 @@ const DieselDashboard: React.FC = () => {
                             </p>
                           </div>
                         )}
-
                         <div className="flex flex-wrap gap-2">
                           <Button
                             size="sm"
@@ -886,24 +904,30 @@ const DieselDashboard: React.FC = () => {
       )}
 
       {/* Modals */}
-      <DieselImportModal isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} />
-
-      <ManualDieselEntryModal isOpen={isManualEntryModalOpen} onClose={() => setIsManualEntryModalOpen(false)} />
-
-      <DieselDebriefModal
-        isOpen={isDebriefModalOpen}
+      <DieselImportModal 
+        isOpen={isImportModalOpen} 
+        onClose={() => setIsImportModalOpen(false)} 
+      />
+      
+      <ManualDieselEntryModal
+        isOpen={isManualEntryModalOpen}
+        onClose={() => setIsManualEntryModalOpen(false)}
+      />
+      
+      <DieselDebriefModal 
+        isOpen={isDebriefModalOpen} 
         onClose={() => setIsDebriefModalOpen(false)}
         records={enhancedRecords.filter(r => r.requiresDebrief)}
         norms={dieselNorms}
       />
-
+      
       <DieselNormsModal
         isOpen={isNormsModalOpen}
         onClose={() => setIsNormsModalOpen(false)}
         norms={dieselNorms}
         onUpdateNorms={updateNorms}
       />
-
+      
       {selectedDieselId && (
         <>
           <TripLinkageModal
@@ -914,7 +938,7 @@ const DieselDashboard: React.FC = () => {
             }}
             dieselRecordId={selectedDieselId}
           />
-
+          
           <ProbeVerificationModal
             isOpen={isProbeVerificationModalOpen}
             onClose={() => {

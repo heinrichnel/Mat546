@@ -1,39 +1,8 @@
-// ─── React ───────────────────────────────────────────────────────
 import React from 'react';
-
-// ─── Icons ───────────────────────────────────────────────────────
-import {
-  Activity,
-  BarChart3,
-  Calendar,
-  CheckCircle,
-  ClipboardList,
-  Clock,
-  Database,
-  DollarSign,
-  FileText,
-  Flag,
-  Fuel,
-  Plus,
-  Settings,
-  Shield,
-  Target,
-  TrendingDown,
-  Truck,
-  Upload,
-  Users,
-  Wifi,
-  WifiOff,
-  User as UserRound // Alias to avoid name conflict
-} from 'lucide-react';
-
-// ─── Context ─────────────────────────────────────────────────────
-import { useAppContext } from '../../context/AppContext.tsx';
-
-// ─── UI Components ───────────────────────────────────────────────
-import Button from '../ui/Button.tsx';
-import SyncIndicator from '../ui/SyncIndicator.tsx';
-
+import { Truck, Plus, Flag, CheckCircle, Activity, FileText, BarChart3, Settings, Target, Users, Calendar, DollarSign, Clock, TrendingDown, Upload, Fuel, Wifi, WifiOff, Database, User as UserRound, ClipboardList, Shield } from 'lucide-react';
+import Button from '../ui/Button';
+import { useAppContext } from '../../context/AppContext';
+import SyncIndicator from '../ui/SyncIndicator';
 
 interface HeaderProps {
   currentView: string;

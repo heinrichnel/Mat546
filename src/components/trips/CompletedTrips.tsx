@@ -1,336 +1,488 @@
-// ─── React & Context ─────────────────────────────────────────────
 import React, { useState } from 'react';
-import { useAppContext } from '../../context/AppContext.tsx';
-
-// ─── Types ───────────────────────────────────────────────────────
-import { Trip, TripDeletionRecord } from '../../types';
-
-// ─── UI Components ───────────────────────────────────────────────
-import Card, { CardContent, CardHeader } from '../ui/Card.tsx';
-import Button from '../ui/Button.tsx';
-import { Input, Select } from '../ui/FormElements.tsx';
-import SyncIndicator from '../ui/SyncIndicator.tsx';
-
-// ─── Feature Components ──────────────────────────────────────────
-import CompletedTripEditModal from './CompletedTripEditModal.tsx';
-import TripDeletionModal from './TripDeletionModal.tsx';
-
-// ─── Icons ───────────────────────────────────────────────────────
-import {
-  Edit,
-  Trash2,
-  FileSpreadsheet,
-  Eye,
-  History,
-  AlertTriangle,
-  User,
+import { Trip, AdditionalCost, DelayReason } from '../../types';
+import Modal from '../ui/Modal';
+import Button from '../ui/Button';
+import { Input, TextArea, FileUpload } from '../ui/FormElements';
+import AdditionalCostsForm from '../costs/AdditionalCostsForm';
+import { 
+  Send, 
+  X, 
+  AlertTriangle, 
+  Clock, 
+  CheckCircle, 
+  FileText, 
+  DollarSign,
   Calendar,
-  Download
+  Flag
 } from 'lucide-react';
+import { formatCurrency, formatDateTime, calculateKPIs } from '../../utils/helpers';
 
-// ─── Helper Functions ────────────────────────────────────────────
-import {
-  formatCurrency,
-  formatDate,
-  formatDateTime,
-  calculateTotalCosts
-} from '../../utils/helpers.ts';
-
-
-interface CompletedTripsProps {
-  trips: Trip[];
-  onView: (trip: Trip) => void;
+interface InvoiceSubmissionModalProps {
+  isOpen: boolean;
+  trip: Trip;
+  onClose: () => void;
+  onSubmit: (invoiceData: {
+    invoiceNumber: string;
+    invoiceDate: string;
+    invoiceDueDate: string;
+    finalTimeline: {
+      finalArrivalDateTime: string;
+      finalOffloadDateTime: string;
+      finalDepartureDateTime: string;
+    };
+    validationNotes: string;
+    proofOfDelivery: FileList | null;
+    signedInvoice: FileList | null;
+  }) => void;
+  onAddAdditionalCost: (cost: Omit<AdditionalCost, 'id'>, files?: FileList) => void;
+  onRemoveAdditionalCost: (costId: string) => void;
 }
 
-const CompletedTrips: React.FC<CompletedTripsProps> = ({ trips, onView }) => {
-  const { updateTrip, deleteTrip, connectionStatus } = useAppContext();
-  const [filters, setFilters] = useState({
-    startDate: '',
-    endDate: '',
-    client: '',
-    driver: '',
-    currency: ''
-  });
-  const [showFilters, setShowFilters] = useState(false);
-  const [editingTrip, setEditingTrip] = useState<Trip | null>(null);
-  const [deletingTrip, setDeletingTrip] = useState<Trip | null>(null);
-  const [showEditHistory, setShowEditHistory] = useState<string | null>(null);
-
-  const userRole: 'admin' | 'manager' | 'operator' = 'admin';
-
-  const filteredTrips = trips.filter(trip => {
-    if (filters.startDate && trip.startDate < filters.startDate) return false;
-    if (filters.endDate && trip.endDate > filters.endDate) return false;
-    if (filters.client && trip.clientName !== filters.client) return false;
-    if (filters.driver && trip.driverName !== filters.driver) return false;
-    if (filters.currency && trip.revenueCurrency !== filters.currency) return false;
-    return true;
+const InvoiceSubmissionModal: React.FC<InvoiceSubmissionModalProps> = ({
+  isOpen,
+  trip,
+  onClose,
+  onSubmit,
+  onAddAdditionalCost,
+  onRemoveAdditionalCost
+}) => {
+  const [formData, setFormData] = useState({
+    invoiceNumber: '',
+    invoiceDate: new Date().toISOString().split('T')[0],
+    invoiceDueDate: '',
+    finalArrivalDateTime: trip.actualArrivalDateTime || trip.plannedArrivalDateTime || '',
+    finalOffloadDateTime: trip.actualOffloadDateTime || trip.plannedOffloadDateTime || '',
+    finalDepartureDateTime: trip.actualDepartureDateTime || trip.plannedDepartureDateTime || '',
+    validationNotes: ''
   });
 
-  const handleFilterChange = (field: string, value: string) => {
-    setFilters(prev => ({ ...prev, [field]: value }));
+  const [proofOfDelivery, setProofOfDelivery] = useState<FileList | null>(null);
+  const [signedInvoice, setSignedInvoice] = useState<FileList | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Calculate timeline discrepancies
+  const calculateDiscrepancies = () => {
+    const discrepancies = [];
+    
+    if (trip.plannedArrivalDateTime && formData.finalArrivalDateTime) {
+      const planned = new Date(trip.plannedArrivalDateTime);
+      const final = new Date(formData.finalArrivalDateTime);
+      const diffHours = (final.getTime() - planned.getTime()) / (1000 * 60 * 60);
+      
+      if (Math.abs(diffHours) > 1) {
+        discrepancies.push({
+          type: 'Arrival',
+          planned: formatDateTime(planned),
+          final: formatDateTime(final),
+          difference: `${diffHours > 0 ? '+' : ''}${diffHours.toFixed(1)} hours`,
+          severity: Math.abs(diffHours) > 4 ? 'major' : Math.abs(diffHours) > 2 ? 'moderate' : 'minor'
+        });
+      }
+    }
+
+    if (trip.plannedOffloadDateTime && formData.finalOffloadDateTime) {
+      const planned = new Date(trip.plannedOffloadDateTime);
+      const final = new Date(formData.finalOffloadDateTime);
+      const diffHours = (final.getTime() - planned.getTime()) / (1000 * 60 * 60);
+      
+      if (Math.abs(diffHours) > 1) {
+        discrepancies.push({
+          type: 'Offload',
+          planned: formatDateTime(planned),
+          final: formatDateTime(final),
+          difference: `${diffHours > 0 ? '+' : ''}${diffHours.toFixed(1)} hours`,
+          severity: Math.abs(diffHours) > 4 ? 'major' : Math.abs(diffHours) > 2 ? 'moderate' : 'minor'
+        });
+      }
+    }
+
+    if (trip.plannedDepartureDateTime && formData.finalDepartureDateTime) {
+      const planned = new Date(trip.plannedDepartureDateTime);
+      const final = new Date(formData.finalDepartureDateTime);
+      const diffHours = (final.getTime() - planned.getTime()) / (1000 * 60 * 60);
+      
+      if (Math.abs(diffHours) > 1) {
+        discrepancies.push({
+          type: 'Departure',
+          planned: formatDateTime(planned),
+          final: formatDateTime(final),
+          difference: `${diffHours > 0 ? '+' : ''}${diffHours.toFixed(1)} hours`,
+          severity: Math.abs(diffHours) > 4 ? 'major' : Math.abs(diffHours) > 2 ? 'moderate' : 'minor'
+        });
+      }
+    }
+
+    return discrepancies;
   };
 
-  const clearFilters = () => {
-    setFilters({
-      startDate: '',
-      endDate: '',
-      client: '',
-      driver: '',
-      currency: ''
+  const handleChange = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    
+    // Auto-calculate due date based on currency
+    if (field === 'invoiceDate') {
+      const invoiceDate = new Date(value);
+      const daysToAdd = trip.revenueCurrency === 'USD' ? 14 : 30;
+      const dueDate = new Date(invoiceDate.getTime() + (daysToAdd * 24 * 60 * 60 * 1000));
+      setFormData(prev => ({ 
+        ...prev, 
+        invoiceDate: value,
+        invoiceDueDate: dueDate.toISOString().split('T')[0]
+      }));
+    }
+    
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: '' }));
+    }
+  };
+
+  const validateForm = () => {
+    const newErrors: Record<string, string> = {};
+    
+    if (!formData.invoiceNumber.trim()) {
+      newErrors.invoiceNumber = 'Invoice number is required';
+    }
+    
+    if (!formData.invoiceDate) {
+      newErrors.invoiceDate = 'Invoice date is required';
+    }
+    
+    if (!formData.invoiceDueDate) {
+      newErrors.invoiceDueDate = 'Due date is required';
+    }
+    
+    if (!formData.finalArrivalDateTime) {
+      newErrors.finalArrivalDateTime = 'Final arrival time is required';
+    }
+    
+    if (!formData.finalOffloadDateTime) {
+      newErrors.finalOffloadDateTime = 'Final offload time is required';
+    }
+    
+    if (!formData.finalDepartureDateTime) {
+      newErrors.finalDepartureDateTime = 'Final departure time is required';
+    }
+    
+    // Check for required documents
+    if (!proofOfDelivery || proofOfDelivery.length === 0) {
+      newErrors.proofOfDelivery = 'Proof of delivery is required for invoicing';
+    }
+    
+    const discrepancies = calculateDiscrepancies();
+    if (discrepancies.length > 0 && !formData.validationNotes.trim()) {
+      newErrors.validationNotes = 'Validation notes are required when there are timeline discrepancies';
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = () => {
+    if (!validateForm()) return;
+    
+    onSubmit({
+      invoiceNumber: formData.invoiceNumber.trim(),
+      invoiceDate: formData.invoiceDate,
+      invoiceDueDate: formData.invoiceDueDate,
+      finalTimeline: {
+        finalArrivalDateTime: formData.finalArrivalDateTime,
+        finalOffloadDateTime: formData.finalOffloadDateTime,
+        finalDepartureDateTime: formData.finalDepartureDateTime
+      },
+      validationNotes: formData.validationNotes.trim(),
+      proofOfDelivery,
+      signedInvoice
     });
   };
 
-  const handleEditSave = (updatedTrip: Trip) => {
-    updateTrip(updatedTrip);
-    setEditingTrip(null);
-    alert('Trip updated successfully. Edit logged.');
-  };
-
-  const handleDelete = (trip: Trip, deletionRecord: Omit<TripDeletionRecord, 'id'>) => {
-    deleteTrip(trip.id);
-    setDeletingTrip(null);
-    alert('Trip deleted successfully. Deletion logged.');
-  };
-
-  const uniqueClients = [...new Set(trips.map(t => t.clientName))];
-  const uniqueDrivers = [...new Set(trips.map(t => t.driverName))];
+  const kpis = calculateKPIs(trip);
+  const discrepancies = calculateDiscrepancies();
+  const hasDiscrepancies = discrepancies.length > 0;
+  const totalAdditionalCosts = trip.additionalCosts?.reduce((sum, cost) => sum + cost.amount, 0) || 0;
+  const finalInvoiceAmount = kpis.totalRevenue + totalAdditionalCosts;
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Completed Trips</h2>
-          <div className="flex items-center mt-1">
-            <p className="text-gray-500 mr-3">
-              {filteredTrips.length} trip{filteredTrips.length !== 1 ? 's' : ''}
-            </p>
-            <SyncIndicator />
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Submit Trip for Invoicing"
+      maxWidth="4xl"
+    >
+      <div className="space-y-6">
+        {/* Trip Summary */}
+        <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
+          <h3 className="text-lg font-medium text-blue-800 mb-3">Trip Summary</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div>
+              <p className="text-blue-600 font-medium">Fleet & Driver</p>
+              <p className="text-blue-800">{trip.fleetNumber} - {trip.driverName}</p>
+            </div>
+            <div>
+              <p className="text-blue-600 font-medium">Route</p>
+              <p className="text-blue-800">{trip.route}</p>
+            </div>
+            <div>
+              <p className="text-blue-600 font-medium">Client</p>
+              <p className="text-blue-800">{trip.clientName}</p>
+            </div>
+            <div>
+              <p className="text-blue-600 font-medium">Period</p>
+              <p className="text-blue-800">{trip.startDate} to {trip.endDate}</p>
+            </div>
           </div>
         </div>
-        <div>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setShowFilters(!showFilters)}
-            icon={<History className="w-4 h-4" />}
-          >
-            {showFilters ? 'Hide Filters' : 'Show Filters'}
-          </Button>
-        </div>
-      </div>
 
-      {showFilters && (
-        <Card>
-          <CardHeader title="Filter Completed Trips" />
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
-              <Input
-                label="Start Date"
-                type="date"
-                value={filters.startDate}
-                onChange={e => handleFilterChange('startDate', e.target.value)}
-              />
-              <Input
-                label="End Date"
-                type="date"
-                value={filters.endDate}
-                onChange={e => handleFilterChange('endDate', e.target.value)}
-              />
-              <Select
-                label="Client"
-                value={filters.client}
-                onChange={e => handleFilterChange('client', e.target.value)}
-                options={[
-                  { label: 'All Clients', value: '' },
-                  ...uniqueClients.map(c => ({ label: c, value: c }))
-                ]}
-              />
-              <Select
-                label="Driver"
-                value={filters.driver}
-                onChange={e => handleFilterChange('driver', e.target.value)}
-                options={[
-                  { label: 'All Drivers', value: '' },
-                  ...uniqueDrivers.map(d => ({ label: d, value: d }))
-                ]}
-              />
-              <Select
-                label="Currency"
-                value={filters.currency}
-                onChange={e => handleFilterChange('currency', e.target.value)}
-                options={[
-                  { label: 'All Currencies', value: '' },
-                  { label: 'ZAR (R)', value: 'ZAR' },
-                  { label: 'USD ($)', value: 'USD' }
-                ]}
-              />
-            </div>
-            <div className="mt-4 text-right">
-              <Button variant="outline" size="sm" onClick={clearFilters}>
-                Clear Filters
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {connectionStatus !== 'connected' && (
-        <div className="bg-amber-50 border border-amber-200 rounded-md p-4">
-          <div className="flex items-start space-x-3">
-            <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5" />
-            <div>
-              <h4 className="text-sm font-medium text-amber-800">Offline Mode</h4>
-              <p className="text-sm text-amber-700">
-                You are currently offline. Changes will sync when back online.
+        {/* Financial Summary */}
+        <div className="bg-green-50 border border-green-200 rounded-md p-4">
+          <h3 className="text-lg font-medium text-green-800 mb-3">Invoice Amount Breakdown</h3>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="text-center">
+              <p className="text-sm text-green-600">Base Revenue</p>
+              <p className="text-xl font-bold text-green-800">
+                {formatCurrency(trip.baseRevenue, trip.revenueCurrency)}
               </p>
             </div>
+            <div className="text-center">
+              <p className="text-sm text-green-600">Additional Costs</p>
+              <p className="text-xl font-bold text-green-800">
+                {formatCurrency(totalAdditionalCosts, trip.revenueCurrency)}
+              </p>
+              <p className="text-xs text-green-600">{trip.additionalCosts?.length || 0} items</p>
+            </div>
+            <div className="text-center">
+              <p className="text-sm text-green-600">Total Invoice Amount</p>
+              <p className="text-2xl font-bold text-green-800">
+                {formatCurrency(finalInvoiceAmount, trip.revenueCurrency)}
+              </p>
+            </div>
+            <div className="text-center">
+              <p className="text-sm text-green-600">Currency</p>
+              <p className="text-xl font-bold text-green-800">{trip.revenueCurrency}</p>
+            </div>
           </div>
         </div>
-      )}
 
-      <div className="grid gap-4">
-        {filteredTrips.map(trip => {
-          const currency = trip.revenueCurrency;
-          const totalCosts = calculateTotalCosts(trip.costs);
-          const profit = (trip.baseRevenue || 0) - totalCosts;
-          const hasEdits = trip.editHistory && trip.editHistory.length > 0;
-
-          return (
-            <Card key={trip.id}>
-              <CardHeader
-                title={`Fleet ${trip.fleetNumber} - ${trip.route}`}
-                subtitle={
-                  <div className="text-sm text-gray-500 flex space-x-2">
-                    <span>{trip.clientName}</span>
-                    <span>• {formatDate(trip.completedAt || trip.endDate)}</span>
-                    {hasEdits && (
-                      <span className="inline-flex items-center px-2 py-1 rounded-full bg-amber-100 text-amber-800 text-xs">
-                        <History className="w-3 h-3 mr-1" />
-                        Edited
-                      </span>
-                    )}
-                  </div>
-                }
-              />
-              <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-3">
-                  <div>
-                    <p className="text-sm text-gray-500">Driver</p>
-                    <p className="font-medium">{trip.driverName}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Dates</p>
-                    <p className="font-medium">
-                      {formatDate(trip.startDate)} - {formatDate(trip.endDate)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Revenue</p>
-                    <p className="font-medium text-green-600">
-                      {formatCurrency(trip.baseRevenue || 0, currency)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Total Costs</p>
-                    <p className="font-medium text-red-600">
-                      {formatCurrency(totalCosts, currency)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Profit</p>
-                    <p className={`font-medium ${profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      {formatCurrency(profit, currency)}
-                    </p>
-                  </div>
-                </div>
-
-                {hasEdits && showEditHistory === trip.id && (
-                  <div className="mb-3 space-y-2 max-h-40 overflow-y-auto bg-amber-50 border border-amber-200 p-3 rounded">
-                    {trip.editHistory.map((edit, index) => (
-                      <div key={index} className="text-sm bg-white p-2 rounded border">
-                        <div className="flex justify-between">
-                          <div>
-                            <p className="font-medium">
-                              {edit.fieldChanged}: {edit.oldValue} → {edit.newValue}
-                            </p>
-                            <p className="text-gray-600">Reason: {edit.reason}</p>
+        {/* Timeline Validation */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-medium text-gray-900">Final Timeline Validation</h3>
+          
+          {hasDiscrepancies && (
+            <div className="bg-amber-50 border border-amber-200 rounded-md p-4">
+              <div className="flex items-start space-x-3">
+                <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5" />
+                <div>
+                  <h4 className="text-sm font-medium text-amber-800">Timeline Discrepancies Detected</h4>
+                  <p className="text-sm text-amber-700 mt-1">
+                    Significant differences found between planned and final times. Please review and provide validation notes.
+                  </p>
+                  <div className="mt-3 space-y-2">
+                    {discrepancies.map((disc, index) => (
+                      <div key={index} className="text-sm bg-amber-100 p-2 rounded border border-amber-300">
+                        <div className="flex items-center space-x-2">
+                          <Flag className={`w-4 h-4 ${
+                            disc.severity === 'major' ? 'text-red-600' : 
+                            disc.severity === 'moderate' ? 'text-orange-600' : 'text-yellow-600'
+                          }`} />
+                          <span className="font-medium text-amber-800">{disc.type} Time Variance ({disc.severity})</span>
+                        </div>
+                        <div className="ml-6 mt-1 space-y-1">
+                          <div className="text-amber-700">
+                            <span className="font-medium">Planned:</span> {disc.planned}
                           </div>
-                          <div className="text-xs text-gray-500 text-right">
-                            <p>{edit.editedBy}</p>
-                            <p>{formatDateTime(edit.editedAt)}</p>
+                          <div className="text-amber-700">
+                            <span className="font-medium">Final:</span> {disc.final}
+                          </div>
+                          <div className="text-amber-800 font-medium">
+                            <span className="font-medium">Difference:</span> {disc.difference}
                           </div>
                         </div>
                       </div>
                     ))}
                   </div>
-                )}
+                </div>
+              </div>
+            </div>
+          )}
 
-                {hasEdits && (
-                  <Button
-                    size="xs"
-                    variant="outline"
-                    icon={<History className="w-3 h-3" />}
-                    onClick={() =>
-                      setShowEditHistory(prev => (prev === trip.id ? null : trip.id))
-                    }
-                  >
-                    {showEditHistory === trip.id ? 'Hide History' : 'View History'}
-                  </Button>
-                )}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Input
+              label="Final Arrival Date & Time *"
+              type="datetime-local"
+              value={formData.finalArrivalDateTime}
+              onChange={(e) => handleChange('finalArrivalDateTime', e.target.value)}
+              error={errors.finalArrivalDateTime}
+            />
+            <Input
+              label="Final Offload Date & Time *"
+              type="datetime-local"
+              value={formData.finalOffloadDateTime}
+              onChange={(e) => handleChange('finalOffloadDateTime', e.target.value)}
+              error={errors.finalOffloadDateTime}
+            />
+            <Input
+              label="Final Departure Date & Time *"
+              type="datetime-local"
+              value={formData.finalDepartureDateTime}
+              onChange={(e) => handleChange('finalDepartureDateTime', e.target.value)}
+              error={errors.finalDepartureDateTime}
+            />
+          </div>
 
-                <div className="mt-4 flex justify-between">
-                  <div className="text-sm text-gray-500">
-                    {trip.costs.length} cost entries
-                    {trip.distanceKm && ` • ${trip.distanceKm} km`}
-                    {trip.completedBy && ` • Completed by ${trip.completedBy}`}
-                  </div>
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="outline" icon={<Eye />} onClick={() => onView(trip)}>
-                      View
-                    </Button>
-                    <Button size="sm" variant="outline" icon={<FileSpreadsheet />}>
-                      Excel
-                    </Button>
-                    <Button size="sm" variant="outline" icon={<Download />}>
-                      PDF
-                    </Button>
-                    <Button size="sm" variant="outline" icon={<Edit />} onClick={() => setEditingTrip(trip)}>
-                      Edit
-                    </Button>
-                    {userRole === 'admin' && (
-                      <Button size="sm" variant="danger" icon={<Trash2 />} onClick={() => setDeletingTrip(trip)}>
-                        Delete
-                      </Button>
-                    )}
+          {hasDiscrepancies && (
+            <TextArea
+              label="Timeline Validation Notes *"
+              value={formData.validationNotes}
+              onChange={(e) => handleChange('validationNotes', e.target.value)}
+              placeholder="Explain the timeline discrepancies and any delays encountered..."
+              rows={3}
+              error={errors.validationNotes}
+            />
+          )}
+        </div>
+
+        {/* Delay Reasons Summary */}
+        {trip.delayReasons && trip.delayReasons.length > 0 && (
+          <div className="bg-red-50 border border-red-200 rounded-md p-4">
+            <h4 className="text-sm font-medium text-red-800 mb-2">Recorded Delays ({trip.delayReasons.length})</h4>
+            <div className="space-y-2">
+              {trip.delayReasons.map((delay, index) => (
+                <div key={index} className="text-sm bg-white p-2 rounded border border-red-200">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <span className="font-medium text-red-800">{delay.delayType.replace(/_/g, ' ').toUpperCase()}</span>
+                      <p className="text-red-700">{delay.description}</p>
+                    </div>
+                    <span className="text-red-600 font-medium">{delay.delayDuration}h</span>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          );
-        })}
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Additional Costs */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-medium text-gray-900">Additional Costs</h3>
+          <AdditionalCostsForm
+            tripId={trip.id}
+            additionalCosts={trip.additionalCosts || []}
+            onAddCost={onAddAdditionalCost}
+            onRemoveCost={onRemoveAdditionalCost}
+          />
+        </div>
+
+        {/* Invoice Details */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-medium text-gray-900">Invoice Information</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Input
+              label="Invoice Number *"
+              value={formData.invoiceNumber}
+              onChange={(e) => handleChange('invoiceNumber', e.target.value)}
+              placeholder="INV-2025-001"
+              error={errors.invoiceNumber}
+            />
+            <Input
+              label="Invoice Date *"
+              type="date"
+              value={formData.invoiceDate}
+              onChange={(e) => handleChange('invoiceDate', e.target.value)}
+              error={errors.invoiceDate}
+            />
+            <Input
+              label={`Due Date * (${trip.revenueCurrency === 'USD' ? '14' : '30'} days default)`}
+              type="date"
+              value={formData.invoiceDueDate}
+              onChange={(e) => handleChange('invoiceDueDate', e.target.value)}
+              error={errors.invoiceDueDate}
+            />
+          </div>
+        </div>
+
+        {/* Required Documents */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-medium text-gray-900">Required Documents</h3>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <FileUpload
+                label="Proof of Delivery (POD) *"
+                accept=".pdf,.jpg,.jpeg,.png"
+                multiple
+                onFileSelect={setProofOfDelivery}
+              />
+              {errors.proofOfDelivery && (
+                <p className="text-sm text-red-600 mt-1">{errors.proofOfDelivery}</p>
+              )}
+              {proofOfDelivery && proofOfDelivery.length > 0 && (
+                <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded">
+                  <p className="text-sm font-medium text-green-800">
+                    Selected: {proofOfDelivery.length} file(s)
+                  </p>
+                  <ul className="text-sm text-green-700 mt-1">
+                    {Array.from(proofOfDelivery).map((file, index) => (
+                      <li key={index}>• {file.name}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+
+            <div>
+              <FileUpload
+                label="Signed Invoice (Optional)"
+                accept=".pdf,.jpg,.jpeg,.png"
+                multiple
+                onFileSelect={setSignedInvoice}
+              />
+              {signedInvoice && signedInvoice.length > 0 && (
+                <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded">
+                  <p className="text-sm font-medium text-blue-800">
+                    Selected: {signedInvoice.length} file(s)
+                  </p>
+                  <ul className="text-sm text-blue-700 mt-1">
+                    {Array.from(signedInvoice).map((file, index) => (
+                      <li key={index}>• {file.name}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Submission Summary */}
+        <div className="bg-gray-50 border border-gray-200 rounded-md p-4">
+          <h4 className="text-sm font-medium text-gray-800 mb-2">Submission Summary</h4>
+          <div className="text-sm text-gray-700 space-y-1">
+            <p>• Trip will be marked as <strong>INVOICED</strong></p>
+            <p>• Invoice aging tracking will begin automatically</p>
+            <p>• Payment follow-up alerts will be scheduled based on currency thresholds</p>
+            <p>• Timeline validation will be recorded for compliance reporting</p>
+            {hasDiscrepancies && (
+              <p className="text-amber-700">• Timeline discrepancies will be flagged for review</p>
+            )}
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex justify-end space-x-3 pt-4 border-t">
+          <Button
+            variant="outline"
+            onClick={onClose}
+            icon={<X className="w-4 h-4" />}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSubmit}
+            icon={<Send className="w-4 h-4" />}
+          >
+            Submit for Invoicing
+          </Button>
+        </div>
       </div>
-
-      {editingTrip && (
-        <CompletedTripEditModal
-          isOpen={!!editingTrip}
-          trip={editingTrip}
-          onClose={() => setEditingTrip(null)}
-          onSave={handleEditSave}
-        />
-      )}
-
-      {deletingTrip && (
-        <TripDeletionModal
-          isOpen={!!deletingTrip}
-          trip={deletingTrip}
-          onClose={() => setDeletingTrip(null)}
-          onDelete={handleDelete}
-          userRole={userRole}
-        />
-      )}
-    </div>
+    </Modal>
   );
 };
 
-export default CompletedTrips;
+export default InvoiceSubmissionModal;

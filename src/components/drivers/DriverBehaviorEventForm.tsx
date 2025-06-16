@@ -1,38 +1,11 @@
-// ─── React ───────────────────────────────────────────────────────
 import React, { useState, useEffect } from 'react';
-
-// ─── Types ───────────────────────────────────────────────────────
-import {
-  DriverBehaviorEvent,
-  DriverBehaviorEventType,
-  DRIVER_BEHAVIOR_EVENT_TYPES,
-  DRIVERS,
-  FLEET_NUMBERS
-} from '../../types';
-
-// ─── Context ─────────────────────────────────────────────────────
-import { useAppContext } from '../../context/AppContext.tsx';
-
-// ─── UI Components ───────────────────────────────────────────────
-import Modal from '../ui/Modal.tsx';
-import Button from '../ui/Button.tsx';
-import { Input, Select, TextArea } from '../ui/FormElements.tsx';
-
-// ─── Icons ───────────────────────────────────────────────────────
-import {
-  Save,
-  X,
-  AlertTriangle,
-  Shield,
-  Calendar,
-  Clock,
-  MapPin,
-  FileUp
-} from 'lucide-react';
-
-// ─── Utilities ───────────────────────────────────────────────────
-import { formatDate } from '../../utils/helpers.ts';
-
+import { DriverBehaviorEvent, DriverBehaviorEventType, DRIVER_BEHAVIOR_EVENT_TYPES, DRIVERS, FLEET_NUMBERS } from '../../types';
+import { useAppContext } from '../../context/AppContext';
+import Modal from '../ui/Modal';
+import Button from '../ui/Button';
+import { Input, Select, TextArea } from '../ui/FormElements';
+import { Save, X, AlertTriangle, Shield, Calendar, Clock, MapPin, FileUp } from 'lucide-react';
+import { formatDate } from '../../utils/helpers';
 
 interface DriverBehaviorEventFormProps {
   isOpen: boolean;

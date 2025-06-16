@@ -1,28 +1,18 @@
-// ─── React ───────────────────────────────────────────────────────
 import React, { useState } from 'react';
-
-// ─── Context ─────────────────────────────────────────────────────
-import { useAppContext } from '../../context/AppContext.tsx';
-
-// ─── UI Components ───────────────────────────────────────────────
-import Modal from '../ui/Modal.tsx';
-import Button from '../ui/Button.tsx';
-import { Select } from '../ui/FormElements.tsx';
-
-// ─── Icons ───────────────────────────────────────────────────────
-import {
-  Link,
-  X,
-  Save,
-  AlertTriangle,
+import Modal from '../ui/Modal';
+import Button from '../ui/Button';
+import { useAppContext } from '../../context/AppContext';
+import { Select } from '../ui/FormElements';
+import { 
+  Link, 
+  X, 
+  Save, 
+  AlertTriangle, 
   DollarSign,
   Truck,
   Calendar
 } from 'lucide-react';
-
-// ─── Utilities ───────────────────────────────────────────────────
-import { formatDate, formatCurrency } from '../../utils/helpers.ts';
-
+import { formatDate, formatCurrency } from '../../utils/helpers';
 
 interface TripLinkageModalProps {
   isOpen: boolean;

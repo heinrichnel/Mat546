@@ -1,36 +1,26 @@
-// ─── React ───────────────────────────────────────────────────────
 import React, { useState } from 'react';
-
-// ─── Types ───────────────────────────────────────────────────────
 import { Trip } from '../../types';
-
-// ─── UI Components ───────────────────────────────────────────────
-import Card, { CardContent, CardHeader } from '../ui/Card.tsx';
-import Button from '../ui/Button.tsx';
-import { Input, Select } from '../ui/FormElements.tsx';
-
-// ─── Icons ───────────────────────────────────────────────────────
-import {
-  AlertTriangle,
-  Building,
-  Calendar,
+import Card, { CardContent, CardHeader } from '../ui/Card';
+import Button from '../ui/Button';
+import { Input, Select } from '../ui/FormElements';
+import { 
+  FileSpreadsheet, 
+  TrendingUp, 
+  TrendingDown, 
+  AlertTriangle, 
   DollarSign,
-  FileSpreadsheet,
   Filter,
-  TrendingDown,
-  TrendingUp,
-  Users
+  Building,
+  Users,
+  Calendar
 } from 'lucide-react';
-
-// ─── Helper Functions ────────────────────────────────────────────
-import {
-  formatDate,
-  formatCurrency,
-  calculateTotalCosts,
+import { 
+  formatDate, 
+  formatCurrency, 
   generateCurrencyFleetReport,
-  downloadCurrencyFleetReport
-} from '../../utils/helpers.ts';
-
+  downloadCurrencyFleetReport,
+  calculateTotalCosts
+} from '../../utils/helpers';
 
 interface CurrencyFleetReportProps {
   trips: Trip[];

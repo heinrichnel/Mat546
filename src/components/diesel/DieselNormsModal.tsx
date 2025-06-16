@@ -1,28 +1,18 @@
-// ─── React ───────────────────────────────────────────────────────
 import React, { useState } from 'react';
-
-// ─── UI Components ───────────────────────────────────────────────
-import Modal from '../ui/Modal.tsx';
-import Button from '../ui/Button.tsx';
-import { Input, Select, Textarea } from '../ui/FormElements.tsx';
-
-// ─── Utilities ───────────────────────────────────────────────────
-import { formatCurrency, formatDate } from '../../utils/helpers.ts';
-
-// ─── Icons ───────────────────────────────────────────────────────
-import {
-  Save,
-  X,
-  Settings,
-  AlertTriangle,
-  Plus,
+import Modal from '../ui/Modal';
+import Button from '../ui/Button';
+import Card, { CardContent, CardHeader } from '../ui/Card';
+import { Input } from '../ui/FormElements';
+import { 
+  Save, 
+  X, 
+  Settings, 
+  AlertTriangle, 
+  Plus, 
   Trash2,
   History
 } from 'lucide-react';
-
-// ─── Constants / Types ───────────────────────────────────────────
 import { FLEET_NUMBERS } from '../../types';
-
 
 interface DieselNorms {
   fleetNumber: string;
@@ -57,7 +47,7 @@ const DieselNormsModal: React.FC<DieselNormsModalProps> = ({
       });
       return;
     }
-
+    
     if (field === 'tolerancePercentage' && numValue > 50) {
       setErrors(prev => {
         const key = `${fleetNumber}-${field}`;
@@ -72,24 +62,24 @@ const DieselNormsModal: React.FC<DieselNormsModalProps> = ({
       delete newErrors[key];
       return newErrors;
     });
-
-    setEditedNorms(prev => prev.map(norm =>
-      norm.fleetNumber === fleetNumber
-        ? {
-          ...norm,
-          [field]: numValue,
-          lastUpdated: new Date().toISOString(),
-          updatedBy: 'Current User'
-        }
+    
+    setEditedNorms(prev => prev.map(norm => 
+      norm.fleetNumber === fleetNumber 
+        ? { 
+            ...norm, 
+            [field]: numValue,
+            lastUpdated: new Date().toISOString(),
+            updatedBy: 'Current User'
+          }
         : norm
     ));
   };
 
   const addNewFleetNorm = () => {
-    const availableFleets = FLEET_NUMBERS.filter(fleet =>
+    const availableFleets = FLEET_NUMBERS.filter(fleet => 
       !editedNorms.some(norm => norm.fleetNumber === fleet)
     );
-
+    
     if (availableFleets.length === 0) {
       alert('All fleets already have norms configured.');
       return;
@@ -145,6 +135,7 @@ const DieselNormsModal: React.FC<DieselNormsModalProps> = ({
       maxWidth="2xl"
     >
       <div className="space-y-6">
+        {/* Header Info */}
         <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
           <div className="flex items-start space-x-3">
             <Settings className="w-5 h-5 text-blue-600 mt-0.5" />
@@ -158,6 +149,7 @@ const DieselNormsModal: React.FC<DieselNormsModalProps> = ({
           </div>
         </div>
 
+        {/* Action Buttons */}
         <div className="flex justify-between items-center">
           <div className="flex space-x-3">
             <Button
@@ -182,10 +174,11 @@ const DieselNormsModal: React.FC<DieselNormsModalProps> = ({
           </div>
         </div>
 
+        {/* Norms Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-96 overflow-y-auto">
-          {editedNorms.map(norm => (
+          {editedNorms.map((norm) => (
             <Card key={norm.fleetNumber} className="relative">
-              <CardHeader
+              <CardHeader 
                 title={`Fleet ${norm.fleetNumber}`}
                 action={
                   <Button
@@ -198,32 +191,41 @@ const DieselNormsModal: React.FC<DieselNormsModalProps> = ({
                 }
               />
               <CardContent className="space-y-4">
-                <Input
-                  label="Expected KM/L"
-                  type="number"
-                  step="0.1"
-                  min="0.1"
-                  max="10"
-                  value={norm.expectedKmPerLitre.toString()}
-                  onChange={e => handleNormChange(norm.fleetNumber, 'expectedKmPerLitre', e.target.value)}
-                  error={errors[`${norm.fleetNumber}-expectedKmPerLitre`]}
-                />
-                <Input
-                  label="Tolerance (%)"
-                  type="number"
-                  step="1"
-                  min="1"
-                  max="50"
-                  value={norm.tolerancePercentage.toString()}
-                  onChange={e => handleNormChange(norm.fleetNumber, 'tolerancePercentage', e.target.value)}
-                  error={errors[`${norm.fleetNumber}-tolerancePercentage`]}
-                />
+                <div>
+                  <Input
+                    label="Expected KM/L"
+                    type="number"
+                    step="0.1"
+                    min="0.1"
+                    max="10"
+                    value={norm.expectedKmPerLitre.toString()}
+                    onChange={(e) => handleNormChange(norm.fleetNumber, 'expectedKmPerLitre', e.target.value)}
+                    error={errors[`${norm.fleetNumber}-expectedKmPerLitre`]}
+                  />
+                </div>
+                
+                <div>
+                  <Input
+                    label="Tolerance (%)"
+                    type="number"
+                    step="1"
+                    min="1"
+                    max="50"
+                    value={norm.tolerancePercentage.toString()}
+                    onChange={(e) => handleNormChange(norm.fleetNumber, 'tolerancePercentage', e.target.value)}
+                    error={errors[`${norm.fleetNumber}-tolerancePercentage`]}
+                  />
+                </div>
+
+                {/* Tolerance Range Display */}
                 <div className="bg-gray-50 rounded-md p-3">
                   <p className="text-xs font-medium text-gray-700 mb-1">Acceptable Range:</p>
                   <p className="text-sm font-mono text-gray-900">
-                    {(norm.expectedKmPerLitre * (1 - norm.tolerancePercentage / 100)).toFixed(2)} - {(norm.expectedKmPerLitre * (1 + norm.tolerancePercentage / 100)).toFixed(2)} KM/L
+                    {(norm.expectedKmPerLitre * (1 - norm.tolerancePercentage/100)).toFixed(2)} - {(norm.expectedKmPerLitre * (1 + norm.tolerancePercentage/100)).toFixed(2)} KM/L
                   </p>
                 </div>
+
+                {/* Last Updated Info */}
                 <div className="text-xs text-gray-500 border-t pt-2">
                   <p>Updated: {new Date(norm.lastUpdated).toLocaleDateString()}</p>
                   <p>By: {norm.updatedBy}</p>
@@ -233,6 +235,7 @@ const DieselNormsModal: React.FC<DieselNormsModalProps> = ({
           ))}
         </div>
 
+        {/* Impact Warning */}
         <div className="bg-amber-50 border border-amber-200 rounded-md p-4">
           <div className="flex items-start space-x-3">
             <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5" />
@@ -248,9 +251,21 @@ const DieselNormsModal: React.FC<DieselNormsModalProps> = ({
           </div>
         </div>
 
+        {/* Action Buttons */}
         <div className="flex justify-end space-x-3 pt-4 border-t">
-          <Button variant="outline" onClick={onClose} icon={<X className="w-4 h-4" />}>Cancel</Button>
-          <Button onClick={handleSave} icon={<Save className="w-4 h-4" />}>Save Norms Configuration</Button>
+          <Button
+            variant="outline"
+            onClick={onClose}
+            icon={<X className="w-4 h-4" />}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSave}
+            icon={<Save className="w-4 h-4" />}
+          >
+            Save Norms Configuration
+          </Button>
         </div>
       </div>
     </Modal>

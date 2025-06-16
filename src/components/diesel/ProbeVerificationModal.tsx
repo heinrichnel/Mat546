@@ -1,28 +1,18 @@
-// ─── React ───────────────────────────────────────────────────────
 import React, { useState, useEffect } from 'react';
-
-// ─── Context ─────────────────────────────────────────────────────
-import { useAppContext } from '../../context/AppContext.tsx';
-
-// ─── UI Components ───────────────────────────────────────────────
-import Modal from '../ui/Modal.tsx';
-import Button from '../ui/Button.tsx';
-import { Input, Select, Textarea } from '../ui/FormElements.tsx';
-
-// ─── Icons ───────────────────────────────────────────────────────
-import {
-  Save,
-  X,
-  CheckCircle,
-  AlertTriangle,
+import Modal from '../ui/Modal';
+import Button from '../ui/Button';
+import { useAppContext } from '../../context/AppContext';
+import { Input, TextArea } from '../ui/FormElements';
+import { 
+  Save, 
+  X, 
+  CheckCircle, 
+  AlertTriangle, 
   Fuel,
   FileText,
   Upload
 } from 'lucide-react';
-
-// ─── Utilities ───────────────────────────────────────────────────
-import { formatCurrency, formatDate } from '../../utils/helpers.ts';
-
+import { formatCurrency, formatDate } from '../../utils/helpers';
 
 interface ProbeVerificationModalProps {
   isOpen: boolean;
@@ -35,7 +25,7 @@ const ProbeVerificationModal: React.FC<ProbeVerificationModalProps> = ({
   onClose,
   dieselRecordId
 }) => {
-  const { dieselRecords, updateDieselRecord, addDriverBehaviorEvent } = useAppContext();
+  const { dieselRecords, updateDieselRecord } = useAppContext();
   
   const [formData, setFormData] = useState({
     probeReading: '',
@@ -47,8 +37,10 @@ const ProbeVerificationModal: React.FC<ProbeVerificationModalProps> = ({
   const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   
+  // Get the diesel record
   const dieselRecord = dieselRecords.find(r => r.id === dieselRecordId);
   
+  // Initialize form data when record changes
   useEffect(() => {
     if (dieselRecord) {
       setFormData({
@@ -62,6 +54,7 @@ const ProbeVerificationModal: React.FC<ProbeVerificationModalProps> = ({
   
   if (!dieselRecord) return null;
   
+  // Calculate discrepancy
   const calculateDiscrepancy = () => {
     if (!formData.probeReading) return null;
     
@@ -71,10 +64,11 @@ const ProbeVerificationModal: React.FC<ProbeVerificationModalProps> = ({
   
   const discrepancy = calculateDiscrepancy();
   const hasLargeDiscrepancy = discrepancy !== null && Math.abs(discrepancy) > 50;
-
+  
   const handleChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     
+    // Clear error
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
     }
@@ -103,6 +97,7 @@ const ProbeVerificationModal: React.FC<ProbeVerificationModalProps> = ({
     const probeReading = parseFloat(formData.probeReading);
     const probeDiscrepancy = dieselRecord.litresFilled - probeReading;
     
+    // Create attachments for any uploaded files
     const attachments = selectedFiles ? Array.from(selectedFiles).map((file, index) => ({
       id: `A${Date.now()}-${index}`,
       filename: file.name,
@@ -112,6 +107,7 @@ const ProbeVerificationModal: React.FC<ProbeVerificationModalProps> = ({
       uploadedAt: new Date().toISOString()
     })) : [];
     
+    // Update the diesel record
     updateDieselRecord({
       ...dieselRecord,
       probeReading,
@@ -123,21 +119,10 @@ const ProbeVerificationModal: React.FC<ProbeVerificationModalProps> = ({
       probeActionTaken: formData.actionTaken || undefined,
       probeAttachments: [...(dieselRecord.probeAttachments || []), ...attachments]
     });
-
-    // If discrepancy > 50L, add a driver behavior event automatically
-    if (hasLargeDiscrepancy) {
-      addDriverBehaviorEvent({
-        driverName: dieselRecord.driverName,
-        fleetNumber: dieselRecord.fleetNumber,
-        eventType: 'Fuel Discrepancy',
-        description: `Large fuel discrepancy detected: ${Math.abs(probeDiscrepancy).toFixed(1)}L difference between filled litres and probe reading.`,
-        date: new Date().toISOString(),
-        resolved: false
-      });
-    }
     
+    // Show success message
     alert(`Probe verification completed successfully.\n\nProbe Reading: ${probeReading}L\nFilled Amount: ${dieselRecord.litresFilled}L\nDiscrepancy: ${Math.abs(probeDiscrepancy).toFixed(1)}L${hasLargeDiscrepancy ? ' (SIGNIFICANT)' : ''}`);
-
+    
     onClose();
   };
   
@@ -181,7 +166,9 @@ const ProbeVerificationModal: React.FC<ProbeVerificationModalProps> = ({
           
           {/* Discrepancy Display */}
           {discrepancy !== null && (
-            <div className={`p-4 rounded-md ${hasLargeDiscrepancy ? 'bg-red-50 border border-red-200' : 'bg-green-50 border border-green-200'}`}>
+            <div className={`p-4 rounded-md ${
+              hasLargeDiscrepancy ? 'bg-red-50 border border-red-200' : 'bg-green-50 border border-green-200'
+            }`}>
               <div className="flex items-start space-x-3">
                 {hasLargeDiscrepancy ? (
                   <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5" />
@@ -316,7 +303,7 @@ const ProbeVerificationModal: React.FC<ProbeVerificationModalProps> = ({
           </Button>
           <Button
             onClick={handleSubmit}
-            icon={<Save className="w-4 h-4" />}
+            icon={<CheckCircle className="w-4 h-4" />}
           >
             Complete Verification
           </Button>

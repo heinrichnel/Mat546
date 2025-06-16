@@ -1,44 +1,29 @@
 import React, { useState } from 'react';
-import { DriverBehaviorEvent } from '../types/index.ts';
-import { useAppContext } from '../context/AppContext.tsx';
-import Card, { CardContent, CardHeader } from '../components/ui/Card.tsx';
-import Button from '../components/ui/Button.tsx';
-import DriverPerformanceOverview from '../components/drivers/DriverPerformanceOverview.tsx';
-import DriverBehaviorEventForm from '../components/drivers/DriverBehaviorEventForm.tsx';
-import DriverBehaviorEventDetails from '../components/drivers/DriverBehaviorEventDetails.tsx';
-import CARReportForm from '../components/drivers/CARReportForm.tsx';
-import CARReportList from '../components/drivers/CARReportList.tsx';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/Tabs.tsx';
+import { useAppContext } from '../context/AppContext';
+import { DriverBehaviorEvent } from '../types';
+import Card, { CardContent, CardHeader } from '../components/ui/Card';
+import Button from '../components/ui/Button';
+import DriverPerformanceOverview from '../components/drivers/DriverPerformanceOverview';
+import DriverBehaviorEventForm from '../components/drivers/DriverBehaviorEventForm';
+import DriverBehaviorEventDetails from '../components/drivers/DriverBehaviorEventDetails';
+import CARReportForm from '../components/drivers/CARReportForm';
+import CARReportList from '../components/drivers/CARReportList';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/Tabs';
 import { User, FileText, Plus } from 'lucide-react';
 
 const DriverBehaviorPage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'performance' | 'car-reports'>('performance');
+  const [activeTab, setActiveTab] = useState('performance');
   const [showEventForm, setShowEventForm] = useState(false);
   const [showEventDetails, setShowEventDetails] = useState(false);
   const [showCARForm, setShowCARForm] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<DriverBehaviorEvent | null>(null);
-
-  // Handle initiating a CAR report from an event
+  
+  // Handle initiating CAR from event
   const handleInitiateCAR = (event: DriverBehaviorEvent) => {
     setSelectedEvent(event);
     setShowCARForm(true);
   };
-
-  const handleCloseEventForm = () => {
-    setShowEventForm(false);
-    setSelectedEvent(null);
-  };
-
-  const handleCloseEventDetails = () => {
-    setShowEventDetails(false);
-    setSelectedEvent(null);
-  };
-
-  const handleCloseCARForm = () => {
-    setShowCARForm(false);
-    setSelectedEvent(null);
-  };
-
+  
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -58,8 +43,8 @@ const DriverBehaviorPage: React.FC = () => {
           </Button>
         </div>
       </div>
-
-      <Tabs value={activeTab} onValueChange={value => setActiveTab(value as typeof activeTab)}>
+      
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="grid grid-cols-2 w-[400px]">
           <TabsTrigger value="performance" className="flex items-center space-x-2">
             <User className="w-4 h-4" />
@@ -70,7 +55,7 @@ const DriverBehaviorPage: React.FC = () => {
             <span>CAR Reports</span>
           </TabsTrigger>
         </TabsList>
-
+        
         <TabsContent value="performance" className="mt-6">
           <DriverPerformanceOverview 
             onAddEvent={() => {
@@ -88,25 +73,31 @@ const DriverBehaviorPage: React.FC = () => {
             onInitiateCAR={handleInitiateCAR}
           />
         </TabsContent>
-
+        
         <TabsContent value="car-reports" className="mt-6">
           <CARReportList />
         </TabsContent>
       </Tabs>
-
+      
       {/* Event Form Modal */}
       <DriverBehaviorEventForm
         isOpen={showEventForm}
-        onClose={handleCloseEventForm}
+        onClose={() => {
+          setSelectedEvent(null);
+          setShowEventForm(false);
+        }}
         event={selectedEvent}
         onInitiateCAR={handleInitiateCAR}
       />
-
+      
       {/* Event Details Modal */}
-      {selectedEvent && showEventDetails && (
+      {selectedEvent && (
         <DriverBehaviorEventDetails
           isOpen={showEventDetails}
-          onClose={handleCloseEventDetails}
+          onClose={() => {
+            setSelectedEvent(null);
+            setShowEventDetails(false);
+          }}
           event={selectedEvent}
           onEdit={() => {
             setShowEventDetails(false);
@@ -118,15 +109,16 @@ const DriverBehaviorPage: React.FC = () => {
           }}
         />
       )}
-
-      {/* CAR Report Modal */}
-      {showCARForm && (
-        <CARReportForm
-          isOpen={showCARForm}
-          onClose={handleCloseCARForm}
-          linkedEvent={selectedEvent}
-        />
-      )}
+      
+      {/* CAR Form Modal */}
+      <CARReportForm
+        isOpen={showCARForm}
+        onClose={() => {
+          setSelectedEvent(null);
+          setShowCARForm(false);
+        }}
+        linkedEvent={selectedEvent}
+      />
     </div>
   );
 };

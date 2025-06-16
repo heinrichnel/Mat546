@@ -1,23 +1,8 @@
-// ─── React ───────────────────────────────────────────────────────
 import React, { useState, useEffect } from 'react';
-
-// ─── UI Components ───────────────────────────────────────────────
-import Card, { CardContent, CardHeader } from '../ui/Card.tsx';
-import Button from '../ui/Button.tsx';
-
-// ─── Icons ───────────────────────────────────────────────────────
-import { 
-  Globe, 
-  Clock, 
-  Code, 
-  GitBranch, 
-  CheckCircle, 
-  Upload 
-} from 'lucide-react';
-
-// ─── Utilities ───────────────────────────────────────────────────
-import { formatDateTime } from '../../utils/helpers.ts';
-
+import Card, { CardContent, CardHeader } from '../ui/Card';
+import Button from '../ui/Button';
+import { Globe, Clock, Code, GitBranch, CheckCircle, Upload } from 'lucide-react';
+import { formatDateTime } from '../../utils/helpers';
 
 interface DeploymentStatusProps {
   className?: string;

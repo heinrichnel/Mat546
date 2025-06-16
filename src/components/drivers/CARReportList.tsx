@@ -1,41 +1,27 @@
-// ─── React ───────────────────────────────────────────────────────
 import React, { useState } from 'react';
-
-// ─── Context ─────────────────────────────────────────────────────
-import { useAppContext } from '../../context/AppContext.tsx';
-
-// ─── Types ───────────────────────────────────────────────────────
+import { useAppContext } from '../../context/AppContext';
 import { CARReport } from '../../types';
-
-// ─── UI Components ───────────────────────────────────────────────
-import Card, { CardContent, CardHeader } from '../ui/Card.tsx';
-import Button from '../ui/Button.tsx';
-import { Input, Select } from '../ui/FormElements.tsx';
-
-// ─── Custom Components ───────────────────────────────────────────
-import CARReportForm from './CARReportForm.tsx';
-import CARReportDetails from './CARReportDetails.tsx';
-
-// ─── Icons ───────────────────────────────────────────────────────
-import {
-  FileText,
-  Plus,
-  Filter,
-  Eye,
-  Edit,
-  Trash2,
-  Download,
-  AlertTriangle,
-  CheckCircle,
-  Clock,
-  Calendar,
-  User,
-  FileUp
+import Card, { CardContent, CardHeader } from '../ui/Card';
+import Button from '../ui/Button';
+import { Input, Select } from '../ui/FormElements';
+import { 
+  FileText, 
+  Plus, 
+  Filter, 
+  Eye, 
+  Edit, 
+  Trash2, 
+  Download, 
+  AlertTriangle, 
+  CheckCircle, 
+  Clock, 
+  Calendar, 
+  User, 
+  FileUp 
 } from 'lucide-react';
-
-// ─── Utilities ───────────────────────────────────────────────────
-import { formatDate } from '../../utils/helpers.ts';
-
+import { formatDate } from '../../utils/helpers';
+import CARReportForm from './CARReportForm';
+import CARReportDetails from './CARReportDetails';
 
 const CARReportList: React.FC = () => {
   const { carReports, deleteCARReport } = useAppContext();

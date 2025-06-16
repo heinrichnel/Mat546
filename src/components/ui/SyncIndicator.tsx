@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAppContext } from '../../context/AppContext.tsx';
+import { useAppContext } from '../../context/AppContext';
 import { RefreshCw, Check, Clock } from 'lucide-react';
 
 interface SyncIndicatorProps {

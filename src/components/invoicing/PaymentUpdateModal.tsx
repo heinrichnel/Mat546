@@ -1,28 +1,10 @@
-// ─── React ───────────────────────────────────────────────────────
 import React, { useState } from 'react';
-
-// ─── Types ───────────────────────────────────────────────────────
 import { Trip } from '../../types';
-
-// ─── UI Components ───────────────────────────────────────────────
-import Modal from '../ui/Modal.tsx';
-import Button from '../ui/Button.tsx';
-import { Input, Select, Textarea } from '../ui/FormElements.tsx';
-
-
-// ─── Icons ───────────────────────────────────────────────────────
-import {
-  Save,
-  X,
-  DollarSign,
-  Calendar,
-  CheckCircle,
-  AlertTriangle
-} from 'lucide-react';
-
-// ─── Utils ───────────────────────────────────────────────────────
-import { formatCurrency, formatDate } from '../../utils/helpers.ts';
-
+import Modal from '../ui/Modal';
+import Button from '../ui/Button';
+import { Input, Select, TextArea } from '../ui/FormElements';
+import { Save, X, DollarSign, Calendar, CheckCircle, AlertTriangle } from 'lucide-react';
+import { formatCurrency, formatDate } from '../../utils/helpers';
 
 interface PaymentUpdateModalProps {
   isOpen: boolean;
@@ -63,20 +45,20 @@ const PaymentUpdateModal: React.FC<PaymentUpdateModalProps> = ({
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
-
+    
     if (formData.paymentStatus !== 'unpaid') {
       if (!formData.paymentAmount || Number(formData.paymentAmount) <= 0) {
         newErrors.paymentAmount = 'Payment amount is required and must be greater than 0';
       }
-
+      
       if (Number(formData.paymentAmount) > trip.baseRevenue) {
         newErrors.paymentAmount = 'Payment amount cannot exceed invoice amount';
       }
-
+      
       if (!formData.paymentReceivedDate) {
         newErrors.paymentReceivedDate = 'Payment received date is required';
       }
-
+      
       if (!formData.paymentMethod) {
         newErrors.paymentMethod = 'Payment method is required';
       }

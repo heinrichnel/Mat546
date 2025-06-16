@@ -6,7 +6,7 @@ import { Trip } from '../../types';
 
 // ─── UI Components ───────────────────────────────────────────────
 import Button from '../ui/Button.tsx';
-import { Input, Select, TextArea } from '../ui/FormElements.tsx';
+import { Input, Select, Textarea } from '../ui/FormElements.tsx';
 
 // ─── Icons ───────────────────────────────────────────────────────
 import {

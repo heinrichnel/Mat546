@@ -1,15 +1,9 @@
-// ─── React & Context ─────────────────────────────────────────────
 import React, { useState } from 'react';
-import { useAppContext } from '../../context/AppContext.tsx';
-
-// ─── UI Components ───────────────────────────────────────────────
-import Modal from '../ui/Modal.tsx';
-import Button from '../ui/Button.tsx';
-import { Input } from '../ui/FormElements.tsx';
-
-// ─── Icons ───────────────────────────────────────────────────────
+import Modal from '../ui/Modal';
+import Button from '../ui/Button';
+import { useAppContext } from '../../context/AppContext';
+import { Input } from '../ui/FormElements';
 import { Upload, X, AlertTriangle, Wifi, WifiOff } from 'lucide-react';
-
 
 interface LoadImportModalProps {
   isOpen: boolean;
@@ -149,7 +143,7 @@ const LoadImportModal: React.FC<LoadImportModalProps> = ({ isOpen, onClose }) =>
             <input
               type="file"
               accept=".csv"
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleFileChange(e)}
+              onChange={handleFileChange}
               className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 
                 file:rounded-md file:border-0 file:text-sm file:font-medium 
                 file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100
